@@ -30,7 +30,20 @@
           <form id="cart-checkout-form">
             <label>Nome do cliente<input id="cart-customer-name" name="name" required maxlength="100" autocomplete="name" placeholder="Seu nome"></label>
             <label>Cidade<input id="cart-customer-city" name="city" required maxlength="100" autocomplete="address-level2" placeholder="Sua cidade"></label>
+            <div class="cart-shipping-section" id="cart-shipping-section" hidden>
+              <h3>ENTREGA E FRETE</h3>
+              <label>CEP de entrega<input id="cart-postal-code" name="postalCode" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000"></label>
+              <button class="cart-shipping-calculate" id="cart-shipping-calculate" type="button">CALCULAR FRETE</button>
+              <p class="cart-shipping-status" id="cart-shipping-status" role="status" aria-live="polite">Informe o CEP para ver as opções de entrega.</p>
+              <div class="cart-shipping-options" id="cart-shipping-options" role="radiogroup" aria-label="Opções de frete"></div>
+              <label>Endereço de entrega<input id="cart-customer-address" name="address" maxlength="240" autocomplete="street-address" placeholder="Rua, número, bairro e complemento"></label>
+              <label>UF<input id="cart-customer-state" name="state" maxlength="2" autocomplete="address-level1" placeholder="Ex.: BA"></label>
+            </div>
             <label>Observação opcional<textarea id="cart-customer-note" name="note" maxlength="500" rows="3" placeholder="Informações para combinar o pedido"></textarea></label>
+            <div class="cart-shipping-summary" id="cart-shipping-summary" hidden>
+              <div><span>FRETE</span><strong id="cart-shipping-price">—</strong></div>
+              <div class="cart-grand-total"><span>TOTAL DO PEDIDO</span><strong id="cart-grand-total">—</strong></div>
+            </div>
             <p class="cart-submit-error" id="cart-submit-error" role="alert" hidden></p>
             <button class="cart-whatsapp-button" id="cart-submit" type="submit">FINALIZAR PEDIDO NO WHATSAPP <span>↗</span></button>
           </form>

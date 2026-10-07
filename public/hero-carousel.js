@@ -28,7 +28,7 @@ const slides = [
       benefits: ['NOME E NÚMERO', 'VÁRIOS TIMES', 'ESCOLHA DO TAMANHO', 'PRODUTOS PERSONALIZADOS']
     },
     hotspots: [
-      { label: 'CRIAR MEU PERSONALIZADO ›', href: '/catalogo?categoria=Personalizados', x: 92, y: 575, width: 738, height: 90, embedded: true }
+      { label: 'CRIAR MEU PERSONALIZADO ›', href: '/produto?id=demo-personalizada-preta', x: 92, y: 575, width: 738, height: 90, embedded: true, personalize: true }
     ]
   },
   {
@@ -175,6 +175,7 @@ function createSlide(slide, index) {
     const link = document.createElement('a');
     link.className = `hero-carousel-hotspot${hotspot.embedded ? ' hero-carousel-hotspot--embedded' : ''}`;
     link.href = hotspot.href;
+    if (hotspot.personalize) link.dataset.personalize = 'true';
     link.setAttribute('aria-label', hotspot.label);
     link.title = hotspot.label;
     link.hidden = true;
@@ -246,6 +247,7 @@ function renderResponsiveActions(slide) {
   for (const hotspot of slide.hotspots || []) {
     const link = document.createElement('a');
     link.href = hotspot.href;
+    if (hotspot.personalize) link.dataset.personalize = 'true';
     link.textContent = hotspot.label;
     responsiveActions.append(link);
   }

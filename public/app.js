@@ -112,6 +112,7 @@ function renderCart(){
 }
 async function checkout(event){
   event.preventDefault();if(!cart.length)return;
+  if(catalog.settings?.shippingEnabled===true){location.href='/carrinho';return;}
   const form=$('#checkout-form'),button=form.querySelector('button[type=submit]');
   const error=$('#checkout-error');error.hidden=true;
   const customer={name:$('#customer-name').value.trim(),city:$('#customer-city').value.trim(),note:$('#customer-note').value.trim()};
@@ -131,7 +132,7 @@ document.addEventListener('click',event=>{
   if(event.target.closest('[data-promo]')){event.preventDefault();location.href='/catalogo?categoria=Promoções';return;}
   const product=event.target.closest('[data-product]');if(product){location.href=`/produto?id=${encodeURIComponent(product.dataset.product)}`;return;}
   if(event.target.closest('[data-all-products]')){event.preventDefault();location.href='/catalogo';return;}
-  if(event.target.closest('[data-personalize]')){event.preventDefault();location.href='/catalogo?categoria=Personalizados';return;}
+  if(event.target.closest('[data-personalize]')){event.preventDefault();const real=catalog.products.find(p=>p.available&&!p.demo&&p.customizable&&['Camisas','Personalizados'].includes(p.category)&&(p.fulfillment!=='ready'||p.stock==null||Number(p.stock)>0));const demo=catalog.products.find(p=>p.id==='demo-personalizada-preta');location.href=real?`/produto?id=${encodeURIComponent(real.id)}`:demo?`/produto?id=${encodeURIComponent(demo.id)}`:'/catalogo?categoria=Personalizados';return;}
   const size=event.target.closest('[data-size]');if(size){document.querySelectorAll('.size-button').forEach(x=>{x.classList.toggle('selected',x===size);x.setAttribute('aria-pressed',x===size?'true':'false')});return;}
   const photo=event.target.closest('[data-photo]');if(photo&&activeProduct){currentPhoto=Number(photo.dataset.photo);$('#main-product-art').innerHTML=art(activeProduct,'main-photo',currentPhoto);document.querySelectorAll('.thumbnail').forEach(x=>x.classList.toggle('active',x===photo));return;}
   if(event.target.closest('#add-to-cart')){addToCart();return;}

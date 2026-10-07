@@ -20,6 +20,12 @@ Os oito itens iniciais continuam no painel como rascunhos inativos. Um produto r
 
 ## Preparação para produção
 
+### Cálculo de frete por CEP
+
+O frete automático usa somente a cotação da API Melhor Envio. Não compra etiqueta nem altera o pagamento por WhatsApp. Ele começa **desativado**, preservando o pedido atual. Para ativar, crie uma conta no Melhor Envio e configure no servidor `MELHOR_ENVIO_TOKEN` com permissão `shipping-calculate` e `MELHOR_ENVIO_USER_AGENT` no formato `Wesllen Imports (email-tecnico@dominio.com)`. Esses valores são segredos do backend; nunca use prefixos públicos. Para testar com uma conta sandbox, use também `MELHOR_ENVIO_SANDBOX=1` e o token correspondente.
+
+No painel, informe o CEP de origem em **Configurações** e o peso em kg, largura, altura e comprimento em cm de cada produto ativo. Depois ative **Cálculo automático**. O servidor recusa a ativação sem token, CEP de origem ou medidas dos produtos ativos. O cliente informa CEP e endereço no carrinho, escolhe uma modalidade e vê o total. Antes de gravar o orçamento e montar o WhatsApp, o servidor consulta o frete de novo e recusa valores alterados ou desatualizados. CEP, endereço, modalidade, prazo e preço ficam no orçamento já existente; não há nova migração SQL.
+
 Execute `npm run build` e `npm test`. Wesley deve criar uma senha definitiva privada. Em um terminal local confiável, execute **interativamente** `npm run admin:hash` e digite a senha no prompt oculto. O script produz o formato `scrypt$<sal de 32 caracteres hexadecimais>$<hash de 128 caracteres hexadecimais>`, exatamente o formato aceito pelo servidor. Copie o resultado diretamente para o segredo de ambiente `ADMIN_PASSWORD_HASH` da hospedagem; não envie a senha ou o hash por chat, documentação, código, Git ou logs. Em produção, configure também `NODE_ENV=production`, `HOST=0.0.0.0` e a `PORT` da hospedagem. Use HTTPS. Depois, Wesley deve conferir o login em `/admin` com a senha escolhida e que uma senha errada é recusada, sem registrar as tentativas em relatórios.
 
 O servidor recusa iniciar em produção se `ADMIN_PASSWORD_HASH` estiver ausente ou inválido, ou se `data/admin-access.txt` ainda existir. Retire o arquivo temporário de desenvolvimento do ambiente de produção. `data/admin.json` não é necessário quando o hash vem do ambiente. O painel mostrará que a senha é gerenciada pelo servidor.

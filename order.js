@@ -16,19 +16,14 @@ export function lineForItem(item) {
   return lines.join('\n');
 }
 
-export function quoteFrom(payload, catalog) {
-  const customer = payload.customer || {};
-  const name = singleLine(customer.name, 100);
-  const city = singleLine(customer.city, 100);
-  const note = multiLine(customer.note, 500);
-  if (!name || !city) throw new Error('Informe nome e cidade.');
-  if (!Array.isArray(payload.items) || !payload.items.length || payload.items.length > 50) throw new Error('O carrinho está vazio ou inválido.');
+export function orderItemsFrom(rawItems, catalog) {
+  if (!Array.isArray(rawItems) || !rawItems.length || rawItems.length > 50) throw new Error('O carrinho está vazio ou inválido.');
 
   const requested=new Map();
-  for(const raw of payload.items)requested.set(raw.productId,(requested.get(raw.productId)||0)+Number(raw.quantity));
+  for(const raw of rawItems)requested.set(raw.productId,(requested.get(raw.productId)||0)+Number(raw.quantity));
   for(const [productId,quantity] of requested){const product=catalog.products.find(entry=>entry.id===productId);if(product?.fulfillment==='ready'&&product.stock!=null&&quantity>Number(product.stock))throw new Error(`Estoque insuficiente para ${product.name}.`);}
 
-  const items = payload.items.map(raw => {
+  return rawItems.map(raw => {
     const product = catalog.products.find(entry => entry.id === raw.productId && entry.available);
     if (!product) throw new Error('Um produto não está mais disponível. Atualize o carrinho.');
     const quantity = Number(raw.quantity);
@@ -50,9 +45,27 @@ export function quoteFrom(payload, catalog) {
     if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error('Preço inválido no catálogo.');
     return { productId: product.id, productName: product.name, model: singleLine(product.model, 60), quantity, size, personalization, unitPrice };
   });
+}
 
-  const total = Math.round(items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) * 100) / 100;
+export function quoteFrom(payload, catalog, shipping = null) {
+  const customer = payload.customer || {};
+  const name = singleLine(customer.name, 100);
+  const city = singleLine(customer.city, 100);
+  const note = multiLine(customer.note, 500);
+  if (!name || !city) throw new Error('Informe nome e cidade.');
+  const items = orderItemsFrom(payload.items, catalog);
+
+  const productsTotal = Math.round(items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) * 100) / 100;
+  const shippingEnabled = catalog.settings?.shippingEnabled === true;
+  const postalCode = String(customer.postalCode || '').replace(/\D/g, '');
+  const address = singleLine(customer.address, 240);
+  const state = singleLine(customer.state, 2).toUpperCase();
+  if (shippingEnabled && (!/^\d{8}$/.test(postalCode) || !address || !/^[A-Z]{2}$/.test(state))) throw new Error('Informe CEP, endereço e UF da entrega.');
+  if (shippingEnabled && (!shipping || shipping.postalCode !== postalCode || !Number.isInteger(shipping.priceCents) || shipping.priceCents < 0)) throw new Error('Calcule novamente o frete antes de finalizar.');
+  const total = Math.round(productsTotal * 100 + (shippingEnabled ? shipping.priceCents : 0)) / 100;
   const storeName=singleLine(catalog.settings?.name,100)||'Wesllen Imports';
-  const message = `Olá, Wesley! Quero fazer este pedido na ${storeName}:\n\n${items.map(lineForItem).join('\n\n')}\n\nTotal dos produtos: ${money(total)}\n\nNome: ${name}\nCidade: ${city}${note ? `\n\nObservação:\n${note}` : ''}\n\nGostaria de combinar a forma de pagamento e a entrega.`;
-  return { id: crypto.randomUUID(), createdAt: new Date().toISOString(), customer: { name, city, note }, items, total, message };
+  const shippingLines = shippingEnabled ? `\nFrete: ${shipping.company ? `${shipping.company} · ` : ''}${shipping.name}\nPrazo estimado: ${shipping.deliveryDays} dia(s) útil(eis)\nValor do frete: ${money(shipping.priceCents / 100)}\nTotal do pedido: ${money(total)}` : '';
+  const deliveryLines = shippingEnabled ? `\nCEP: ${postalCode}\nEndereço: ${address}\nCidade/UF: ${city}/${state}` : `\nCidade: ${city}`;
+  const message = `Olá, Wesley! Quero fazer este pedido na ${storeName}:\n\n${items.map(lineForItem).join('\n\n')}\n\nTotal dos produtos: ${money(productsTotal)}${shippingLines}\n\nNome: ${name}${deliveryLines}${note ? `\n\nObservação:\n${note}` : ''}\n\nGostaria de combinar a forma de pagamento e a entrega.`;
+  return { id: crypto.randomUUID(), createdAt: new Date().toISOString(), customer: { name, city, note, ...(shippingEnabled ? { postalCode, address, state } : {}) }, items, productsTotal, shipping: shippingEnabled ? shipping : null, total, message };
 }

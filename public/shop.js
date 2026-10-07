@@ -11,6 +11,10 @@ let currentProduct = null;
 let selectedSize = '';
 let quantity = 1;
 let toastTimer;
+let shippingQuote = null;
+let selectedShipping = null;
+let shippingRequest = 0;
+let submittingOrder = false;
 try { cart = JSON.parse(localStorage.getItem('wesllen-cart') || '[]'); if (!Array.isArray(cart)) cart = []; } catch { cart = []; }
 
 function photo(product, className, photoIndex = 0) {
@@ -211,7 +215,7 @@ function addToCart() {
   openCart();
 }
 
-function saveCart() { localStorage.setItem('wesllen-cart', JSON.stringify(cart)); updateCartCount(); renderCart(); if (page === 'carrinho') renderCartPage(); }
+function saveCart() { localStorage.setItem('wesllen-cart', JSON.stringify(cart)); updateCartCount(); renderCart(); if (page === 'carrinho') { const recalculate=Boolean(shippingQuote); invalidateShipping('O carrinho mudou. Calcule o frete novamente.'); renderCartPage(); if(recalculate) calculateCartShipping(); } }
 function updateCartCount() { $('#shop-cart-count').textContent = cart.reduce((sum,item) => sum + Number(item.quantity || 0), 0); }
 function toast(message) { const el = $('#shop-toast'); el.textContent = message; el.classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('visible'), 3000); }
 function renderCart() {
@@ -231,13 +235,55 @@ function renderCartPage() {
   const total = cart.reduce((sum,item) => { const product = available.find(p => p.id === item.productId); return sum + unitPrice(product,item.personalization) * item.quantity; }, 0);
   $('#cart-line-count').textContent = `${count} ${count === 1 ? 'item' : 'itens'}`;
   $('#cart-page-total').textContent = money(total);
-  $('#cart-submit').disabled = cart.length === 0;
+  $('#cart-submit').disabled = cart.length === 0 || submittingOrder || (catalog.settings?.shippingEnabled === true && !selectedShipping);
   $('#cart-page-items').innerHTML = cart.length ? cart.map((item,index) => {
     const product = available.find(p => p.id === item.productId);
     const custom = [item.personalization?.name,item.personalization?.number,item.personalization?.phrase].filter(Boolean).join(' ');
     return `<article class="cart-page-item"><a class="cart-page-image" href="${productUrl(product)}" aria-label="Ver ${escapeHtml(product.name)}">${photo(product,'cart-page-photo')}</a><div class="cart-page-details"><h3><a href="${productUrl(product)}">${escapeHtml(product.name)}</a></h3>${item.size ? `<p><strong>Tamanho:</strong> ${escapeHtml(item.size)}</p>` : ''}${product.model ? `<p><strong>Modelo:</strong> ${escapeHtml(product.model)}</p>` : ''}${custom ? `<p><strong>Personalização:</strong> ${escapeHtml(custom)}</p>` : ''}${item.personalization?.note ? `<p><strong>Observação do produto:</strong> ${escapeHtml(item.personalization.note)}</p>` : ''}<div class="cart-page-qty"><button type="button" data-page-qty="-1" data-index="${index}" aria-label="Diminuir quantidade de ${escapeHtml(product.name)}">−</button><span aria-label="Quantidade ${item.quantity}">${item.quantity}</span><button type="button" data-page-qty="1" data-index="${index}" aria-label="Aumentar quantidade de ${escapeHtml(product.name)}">+</button></div></div><div class="cart-page-prices"><div><span>Preço unitário</span><strong>${money(unitPrice(product,item.personalization))}</strong></div><div><span>Subtotal</span><strong>${money(unitPrice(product,item.personalization) * item.quantity)}</strong></div></div><button type="button" class="cart-page-remove" data-page-remove="${index}" aria-label="Remover ${escapeHtml(product.name)}">Remover</button></article>`;
   }).join('') : '<div class="cart-page-empty"><h3>Seu carrinho está vazio</h3><p>Escolha seus produtos no catálogo para começar.</p></div>';
   updateCartCount();
+  renderShippingTotal(total);
+}
+
+function cartSignature() { return JSON.stringify(cart.map(item=>({productId:item.productId,size:item.size,personalization:item.personalization,quantity:item.quantity}))); }
+function invalidateShipping(message) {
+  shippingRequest++;
+  shippingQuote=null;selectedShipping=null;
+  if(page!=='carrinho'||catalog.settings?.shippingEnabled!==true)return;
+  $('#cart-shipping-options').innerHTML='';
+  $('#cart-shipping-status').textContent=message;
+  $('#cart-shipping-status').classList.remove('error');
+  $('#cart-shipping-calculate').disabled=false;
+  $('#cart-shipping-calculate').textContent='CALCULAR FRETE';
+  renderShippingTotal();
+  $('#cart-submit').disabled=true;
+}
+function renderShippingTotal(productsTotal) {
+  if(page!=='carrinho'||catalog.settings?.shippingEnabled!==true)return;
+  const total=productsTotal??cart.reduce((sum,item)=>{const product=catalog.products.find(p=>p.id===item.productId);return product?sum+unitPrice(product,item.personalization)*item.quantity:sum;},0);
+  $('#cart-shipping-summary').hidden=!selectedShipping;
+  $('#cart-shipping-price').textContent=selectedShipping?money(selectedShipping.priceCents/100):'—';
+  $('#cart-grand-total').textContent=selectedShipping?money(Math.round(total*100+selectedShipping.priceCents)/100):'—';
+}
+async function calculateCartShipping() {
+  if(catalog.settings?.shippingEnabled!==true)return;
+  const postalCode=$('#cart-postal-code').value.replace(/\D/g,'');
+  invalidateShipping('Consultando opções de entrega...');
+  const request=shippingRequest,signature=cartSignature();
+  const status=$('#cart-shipping-status'),button=$('#cart-shipping-calculate');
+  if(!/^\d{8}$/.test(postalCode)){status.textContent='Informe um CEP válido com 8 números.';status.classList.add('error');return;}
+  if(!cart.length){status.textContent='Adicione um produto antes de calcular o frete.';status.classList.add('error');return;}
+  button.disabled=true;button.textContent='CALCULANDO...';
+  try {
+    const response=await fetch('/api/shipping/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postalCode,items:cart})});
+    const result=await response.json();
+    if(request!==shippingRequest||signature!==cartSignature()||postalCode!==$('#cart-postal-code').value.replace(/\D/g,''))return;
+    if(!response.ok)throw new Error(result.error||'Não foi possível calcular o frete.');
+    shippingQuote={...result,signature};
+    $('#cart-shipping-options').innerHTML=result.options.map(option=>`<label class="cart-shipping-option"><input type="radio" name="shipping-option" value="${escapeHtml(option.id)}"><span>${escapeHtml([option.company,option.name].filter(Boolean).join(' · '))}<small>Prazo estimado: ${Number(option.deliveryDays)} dia(s) útil(eis)</small></span><strong>${money(option.priceCents/100)}</strong></label>`).join('');
+    status.textContent='Escolha uma opção de entrega para continuar.';
+  } catch(error) {if(request===shippingRequest){status.textContent=error.message;status.classList.add('error');}}
+  finally {if(request===shippingRequest){button.disabled=false;button.textContent='CALCULAR FRETE';}}
 }
 
 async function submitCart(event) {
@@ -246,24 +292,36 @@ async function submitCart(event) {
   if (!cart.length) { error.textContent = 'Adicione um produto ao carrinho.'; error.hidden = false; return; }
   const customer = { name:$('#cart-customer-name').value.trim(), city:$('#cart-customer-city').value.trim(), note:$('#cart-customer-note').value.trim() };
   if (!customer.name || !customer.city) { error.textContent = 'Informe seu nome e sua cidade.'; error.hidden = false; return; }
+  if(catalog.settings?.shippingEnabled===true){
+    customer.postalCode=$('#cart-postal-code').value.replace(/\D/g,'');customer.address=$('#cart-customer-address').value.trim();customer.state=$('#cart-customer-state').value.trim().toUpperCase();
+    if(!shippingQuote||!selectedShipping||shippingQuote.signature!==cartSignature()||shippingQuote.postalCode!==customer.postalCode){error.textContent='Calcule e escolha o frete antes de finalizar.';error.hidden=false;return;}
+    if(!customer.address||!customer.city||!/^[A-Z]{2}$/.test(customer.state)){error.textContent='Informe endereço, cidade e UF da entrega.';error.hidden=false;return;}
+  }
   const button = $('#cart-submit');
   const popup = window.open('about:blank','_blank');
-  button.disabled = true; button.textContent = 'PREPARANDO PEDIDO...';
+  submittingOrder=true;button.disabled = true; button.textContent = 'PREPARANDO PEDIDO...';
   try {
-    const response = await fetch('/api/quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer,items:cart})});
+    const response = await fetch('/api/quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer,items:cart,shipping:selectedShipping})});
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'Não foi possível preparar o pedido.');
+    if (!response.ok) { if(response.status===409&&catalog.settings?.shippingEnabled===true)invalidateShipping('O frete mudou. Calcule novamente antes de finalizar.');throw new Error(payload.error || 'Não foi possível preparar o pedido.'); }
     if (popup) popup.location.href = payload.url; else location.href = payload.url;
   } catch (failure) {
     if (popup) popup.close();
     error.textContent = failure.message; error.hidden = false;
   } finally {
-    button.disabled = false; button.innerHTML = 'FINALIZAR PEDIDO NO WHATSAPP <span>↗</span>';
+    submittingOrder=false;button.disabled = !cart.length || (catalog.settings?.shippingEnabled===true&&!selectedShipping); button.innerHTML = 'FINALIZAR PEDIDO NO WHATSAPP <span>↗</span>';
   }
 }
 
 function initCartPage() {
   renderCartPage();
+  if(catalog.settings?.shippingEnabled===true){
+    $('#cart-shipping-section').hidden=false;
+    $('#cart-postal-code').required=true;$('#cart-customer-address').required=true;$('#cart-customer-state').required=true;
+    $('#cart-shipping-calculate').addEventListener('click',calculateCartShipping);
+    $('#cart-postal-code').addEventListener('input',()=>invalidateShipping('CEP alterado. Calcule o frete novamente.'));
+    $('#cart-shipping-options').addEventListener('change',event=>{const option=shippingQuote?.options.find(entry=>entry.id===event.target.value);selectedShipping=option||null;renderShippingTotal();$('#cart-submit').disabled=!selectedShipping;});
+  }
   $('#cart-checkout-form').addEventListener('submit',submitCart);
 }
 
@@ -296,7 +354,7 @@ async function init() {
     if (page === 'catalogo') initCatalog(); else if (page === 'carrinho') initCartPage(); else if(page==='times') initTeams(); else renderProduct();
     if (location.hash === '#carrinho') openCart();
   } catch {
-    const target = page === 'catalogo' ? '#catalog-grid' : page==='times' ? '#teams-page' : '#product-page';
+    const target = page === 'catalogo' ? '#catalog-grid' : page==='times' ? '#teams-page' : page==='carrinho' ? '#cart-page-items' : '#product-page';
     $(target).innerHTML = '<div class="catalog-empty"><h2>Não foi possível carregar os produtos</h2><p>Atualize a página para tentar novamente.</p></div>';
   }
 }

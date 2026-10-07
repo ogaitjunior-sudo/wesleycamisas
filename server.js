@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { quoteFrom } from './order.js';
+import { quoteFrom, orderItemsFrom } from './order.js';
+import { calculateShipping, shippingMeasurements } from './shipping.js';
 import { normalizedCatalog, publicationIssues } from './publication.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { prepareTeamsCatalog } from './teams.js';
@@ -42,6 +43,8 @@ const initialCatalog = {
     whatsapp: '',
     instagram: '',
     instagramEnabled: false,
+    shippingEnabled: false,
+    shippingOriginCep: '',
     announcement: 'Camisas importadas, personalização e presentes exclusivos',
     heroEyebrow: 'VISTA SUA',
     heroTitle: 'PAIXÃO',
@@ -229,6 +232,14 @@ const server = http.createServer(async (req, res) => {
       const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
       return json(res, 200, { ...catalog, products: catalog.products.filter(product => product.available) });
     }
+    if (pathname === '/api/shipping/quote' && req.method === 'POST') {
+      const payload = await body(req, 100_000);
+      const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
+      if (catalog.settings?.shippingEnabled !== true) return json(res, 409, { error: 'Frete automático ainda não está ativo.' });
+      const items = orderItemsFrom(payload.items, catalog);
+      const quote = await calculateShipping({ postalCode: payload.postalCode, items, catalog, token: process.env.MELHOR_ENVIO_TOKEN, userAgent: process.env.MELHOR_ENVIO_USER_AGENT, sandbox: process.env.MELHOR_ENVIO_SANDBOX === '1' });
+      return json(res, 200, quote);
+    }
     if (pathname === '/api/admin/session' && req.method === 'GET') return json(res, 200, { authenticated: isAdmin(req), passwordManagedByEnvironment: Boolean(environmentHash) });
     if (pathname === '/api/admin/login' && req.method === 'POST') {
       const { password } = await body(req, 4000);
@@ -257,6 +268,11 @@ const server = http.createServer(async (req, res) => {
         if(!valid)return json(res,400,{error:'Informe uma URL válida do Instagram (https://www.instagram.com/perfil/).'});
       }
       next.settings.instagramEnabled=next.settings.instagramEnabled===true;
+      next.settings.shippingEnabled=next.settings.shippingEnabled===true;
+      next.settings.shippingOriginCep=String(next.settings.shippingOriginCep||'').replace(/\D/g,'');
+      if(next.settings.shippingOriginCep&&!/^\d{8}$/.test(next.settings.shippingOriginCep))return json(res,400,{error:'Informe um CEP de origem com 8 números.'});
+      if(next.settings.shippingEnabled&&!next.settings.shippingOriginCep)return json(res,400,{error:'Configure o CEP de origem antes de ativar o frete.'});
+      if(next.settings.shippingEnabled&&(!process.env.MELHOR_ENVIO_TOKEN||!process.env.MELHOR_ENVIO_USER_AGENT))return json(res,409,{error:'Configure MELHOR_ENVIO_TOKEN e MELHOR_ENVIO_USER_AGENT no servidor antes de ativar o frete.'});
       const teamIds=new Set(),teamSlugs=new Set();
       for(const team of next.categories){
         if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.id||''))||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.slug||''))||!String(team.name||'').trim()||teamIds.has(team.id)||teamSlugs.has(team.slug))return json(res,400,{error:'Time inválido, duplicado ou com slug repetido.'});
@@ -289,6 +305,14 @@ const server = http.createServer(async (req, res) => {
         product.team_id=String(product.team_id??product.team??'');
         if(product.team_id&&!teamIds.has(product.team_id))return json(res,400,{error:'Selecione um time cadastrado para o produto.'});
         if(product.team_id)product.team=product.team_id;
+        if(product.shipping!=null){
+          if(typeof product.shipping!=='object'||Array.isArray(product.shipping))return json(res,400,{error:'Peso e medidas inválidos.'});
+          product.shipping=Object.fromEntries(['weight','width','height','length'].map(key=>[key,product.shipping[key]==null||product.shipping[key]===''?null:Number(product.shipping[key])]));
+          if(Object.values(product.shipping).some(value=>value!=null&&(!Number.isFinite(value)||value<=0)))return json(res,400,{error:'Peso e medidas devem ser maiores que zero.'});
+        }
+        if(next.settings.shippingEnabled&&product.available){
+          try{shippingMeasurements(product);}catch{return json(res,400,{error:`Cadastre peso e medidas de ${product.name} antes de ativar o frete.`});}
+        }
       }
       const unpublished = next.products.filter(product => product.available && publicationIssues(product, next, uploadDir, publicPhotoBase).length)
         .map(product => ({ id: product.id, missing: publicationIssues(product, next, uploadDir, publicPhotoBase) }));
@@ -322,7 +346,15 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/quotes' && req.method === 'POST') {
       const payload = await body(req, 100_000);
       const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
-      const quote = quoteFrom(payload, catalog);
+      let shipping = null;
+      if (catalog.settings?.shippingEnabled === true) {
+        const items = orderItemsFrom(payload.items, catalog);
+        const fresh = await calculateShipping({ postalCode: payload.customer?.postalCode, items, catalog, token: process.env.MELHOR_ENVIO_TOKEN, userAgent: process.env.MELHOR_ENVIO_USER_AGENT, sandbox: process.env.MELHOR_ENVIO_SANDBOX === '1' });
+        const selected = fresh.options.find(option => option.id === String(payload.shipping?.id || ''));
+        if (!selected || selected.priceCents !== Number(payload.shipping?.priceCents) || selected.deliveryDays !== Number(payload.shipping?.deliveryDays)) return json(res, 409, { error: 'O frete mudou ou não está mais disponível. Calcule novamente antes de finalizar.' });
+        shipping = { ...selected, postalCode: fresh.postalCode };
+      }
+      const quote = quoteFrom(payload, catalog, shipping);
       const phone = String(catalog.settings.whatsapp || '').replace(/\D/g, '');
       if (!phone) return json(res, 422, { error: 'O WhatsApp da loja ainda não está configurado.' });
       await saveQuote(quote);
