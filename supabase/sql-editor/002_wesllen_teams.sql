@@ -1,0 +1,2 @@
+-- OBSOLETA: não execute esta migração.
+-- Use apenas 004_wesllen_selecoes_catalogo.sql, que não depende de tabelas auxiliares.

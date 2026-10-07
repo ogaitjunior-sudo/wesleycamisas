@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Foto do produto em breve">
+  <defs><radialGradient id="bg"><stop stop-color="#262115"/><stop offset="1" stop-color="#111112"/></radialGradient></defs>
+  <rect width="600" height="600" fill="url(#bg)"/>
+  <rect x="24" y="24" width="552" height="552" rx="16" fill="none" stroke="#68501b" stroke-width="2"/>
+  <rect x="181" y="147" width="238" height="194" rx="12" fill="none" stroke="#a78431" stroke-width="7"/>
+  <circle cx="256" cy="210" r="19" fill="none" stroke="#a78431" stroke-width="7"/>
+  <path d="m194 317 76-67 57 44 39-30 41 40" fill="none" stroke="#a78431" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="300" y="419" text-anchor="middle" fill="#f4d68b" font-family="Arial,sans-serif" font-weight="800" font-size="27" letter-spacing="3">FOTO EM BREVE</text>
+  <text x="300" y="453" text-anchor="middle" fill="#aaa49a" font-family="Arial,sans-serif" font-size="17">Imagem a ser cadastrada no painel</text>
+</svg>

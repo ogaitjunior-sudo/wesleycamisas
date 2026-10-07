@@ -1,0 +1,12 @@
+data/catalog.json
+data/quotes.json
+data/admin.json
+data/admin-access.txt
+public/uploads/
+.release-test-*/
+release-preview-*/
+.env
+.env.*
+!.env.example
+.vercel/
+.live-test-*/

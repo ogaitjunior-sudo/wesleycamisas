@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 650" role="img" aria-label="Ilustração de camisa personalizável">
+  <defs><radialGradient id="bg"><stop stop-color="#50300a"/><stop offset=".6" stop-color="#1b140b"/><stop offset="1" stop-color="#090909"/></radialGradient><linearGradient id="shirt"><stop stop-color="#171717"/><stop offset=".5" stop-color="#34302a"/><stop offset="1" stop-color="#0b0b0b"/></linearGradient></defs>
+  <rect width="1100" height="650" fill="url(#bg)"/>
+  <path d="M780 0 405 650M999 0 624 650M1090 183 823 650" stroke="#a36911" stroke-opacity=".25" stroke-width="3"/>
+  <circle cx="785" cy="260" r="270" fill="none" stroke="#d4911d" stroke-opacity=".18" stroke-width="4"/>
+  <path d="m545 95-90 65-72 177 91 39 60-88v284h479V288l60 88 91-39-72-177-90-65-83 53H628z" transform="translate(-125 0) scale(.95)" fill="url(#shirt)" stroke="#e0a21f" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M665 145q102 85 204 0" fill="none" stroke="#d6ad55" stroke-width="6"/>
+  <path d="M500 420h496" stroke="#8e6418" stroke-width="3" opacity=".55"/>
+  <text x="735" y="280" text-anchor="middle" fill="#f6ce71" font-family="Arial,sans-serif" font-weight="800" font-size="62" letter-spacing="5">WESLEY</text>
+  <text x="735" y="480" text-anchor="middle" fill="#d9a536" font-family="Arial,sans-serif" font-weight="900" font-size="190">10</text>
+  <text x="735" y="594" text-anchor="middle" fill="#c49a4c" font-family="Arial,sans-serif" font-size="20" letter-spacing="4">EXEMPLO DE PERSONALIZAÇÃO</text>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 520" role="img" aria-label="Exemplo ilustrativo de personalização WESLEY 10">
+  <defs><radialGradient id="bg"><stop stop-color="#513007"/><stop offset="1" stop-color="#090909"/></radialGradient></defs>
+  <rect width="700" height="520" fill="url(#bg)"/>
+  <path d="m225 78-79 51-57 131 77 37 48-73v242h273V224l48 73 77-37-57-131-79-51-54 36H279z" fill="#171717" stroke="#d19a24" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M280 115q71 64 142 0" fill="none" stroke="#d19a24" stroke-width="5"/>
+  <text x="350" y="250" text-anchor="middle" fill="#f5ca64" font-family="Arial,sans-serif" font-weight="800" font-size="41" letter-spacing="3">WESLEY</text>
+  <text x="350" y="400" text-anchor="middle" fill="#e5ad2e" font-family="Arial,sans-serif" font-weight="900" font-size="142">10</text>
+  <text x="350" y="497" text-anchor="middle" fill="#b9a983" font-family="Arial,sans-serif" font-size="15" letter-spacing="2">EXEMPLO ILUSTRATIVO</text>
+</svg>

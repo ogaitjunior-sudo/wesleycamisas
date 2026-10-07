@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Revise seu carrinho e envie seu pedido à Wesllen Imports pelo WhatsApp.">
+  <title>Meu Carrinho | Wesllen Imports</title>
+  <link rel="icon" type="image/png" href="/assets/logo-wesllen-oficial.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/shop.css">
+  <link rel="stylesheet" href="/cart.css">
+  <link rel="stylesheet" href="/brand.css">
+</head>
+<body data-page="carrinho">
+  <div class="site-frame">
+    <div id="shop-header"></div>
+    <main class="shop-main cart-main">
+      <nav class="shop-breadcrumb" aria-label="Caminho"><a href="/">Início</a><span>›</span><a href="/catalogo">Catálogo</a><span>›</span><span>Meu Carrinho</span></nav>
+      <div class="cart-page-heading"><p class="shop-eyebrow">WESLLEN IMPORTS</p><h1>MEU CARRINHO</h1><p>Revise seus produtos antes de enviar o pedido.</p></div>
+      <div class="cart-page-layout">
+        <section class="cart-page-products" aria-labelledby="cart-products-title">
+          <div class="cart-panel-head"><h2 id="cart-products-title">SEUS PRODUTOS</h2><span id="cart-line-count">0 itens</span></div>
+          <div id="cart-page-items" aria-live="polite"></div>
+          <a class="cart-continue" href="/catalogo">← CONTINUAR COMPRANDO</a>
+        </section>
+        <aside class="cart-page-summary" aria-labelledby="cart-summary-title">
+          <h2 id="cart-summary-title">RESUMO DO PEDIDO</h2>
+          <div class="cart-page-total"><span>TOTAL DOS PRODUTOS</span><strong id="cart-page-total">R$ 0,00</strong></div>
+          <form id="cart-checkout-form">
+            <label>Nome do cliente<input id="cart-customer-name" name="name" required maxlength="100" autocomplete="name" placeholder="Seu nome"></label>
+            <label>Cidade<input id="cart-customer-city" name="city" required maxlength="100" autocomplete="address-level2" placeholder="Sua cidade"></label>
+            <label>Observação opcional<textarea id="cart-customer-note" name="note" maxlength="500" rows="3" placeholder="Informações para combinar o pedido"></textarea></label>
+            <p class="cart-submit-error" id="cart-submit-error" role="alert" hidden></p>
+            <button class="cart-whatsapp-button" id="cart-submit" type="submit">FINALIZAR PEDIDO NO WHATSAPP <span>↗</span></button>
+          </form>
+          <p class="cart-page-note">Pagamento e entrega são combinados diretamente pelo WhatsApp.</p>
+        </aside>
+      </div>
+    </main>
+    <div id="shop-footer"></div>
+  </div>
+  <div id="shop-overlay" class="shop-overlay" hidden></div>
+  <aside id="shop-cart" class="shop-cart" role="dialog" aria-modal="true" aria-labelledby="shop-cart-title" hidden></aside>
+  <div id="shop-toast" class="shop-toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/shop.js"></script>
+</body>
+</html>

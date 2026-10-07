@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Explore camisas de futebol, personalizados, canecas, bonés e presentes da Wesllen Imports.">
+  <title>Catálogo | Wesllen Imports</title>
+  <link rel="icon" type="image/png" href="/assets/logo-wesllen-oficial.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/shop.css">
+  <link rel="stylesheet" href="/brand.css">
+</head>
+<body data-page="catalogo">
+  <div class="site-frame">
+    <div id="shop-header"></div>
+    <main class="shop-main">
+      <nav class="shop-breadcrumb" aria-label="Caminho"><a href="/">Início</a><span>›</span><span>Catálogo</span></nav>
+      <div class="shop-title-row"><div><p class="shop-eyebrow">WESLLEN IMPORTS</p><h1>CATÁLOGO DE PRODUTOS</h1><p>Encontre sua camisa, seu time e presentes feitos do seu jeito.</p></div><img class="shop-title-mark" src="/assets/logo-wesllen-oficial.png" alt=""></div>
+      <div class="catalog-layout">
+        <aside class="catalog-filters" aria-label="Filtros de produtos">
+          <div class="filter-head"><h2>FILTRAR PRODUTOS</h2><button type="button" id="clear-filters">Limpar</button></div>
+          <label>Categoria<select id="filter-category"><option value="">Todas as categorias</option><option>Camisas</option><option>Personalizados</option><option>Canecas</option><option>Bonés</option><option>Presentes</option><option>Importados</option><option>Promoções</option></select></label>
+          <label>Time<select id="filter-team"><option value="">Todos os times</option></select></label>
+          <label>Tamanho<select id="filter-size"><option value="">Todos os tamanhos</option><option>P</option><option>M</option><option>G</option><option>GG</option><option>XG</option></select></label>
+          <label>Faixa de preço<select id="filter-price"><option value="">Todos os preços</option><option value="0-50">Até R$ 50</option><option value="50-100">R$ 50 a R$ 100</option><option value="100-200">R$ 100 a R$ 200</option><option value="200-plus">Acima de R$ 200</option></select></label>
+        </aside>
+        <section class="catalog-results" aria-labelledby="catalog-results-title">
+          <div class="results-head"><div><h2 id="catalog-results-title">TODOS OS PRODUTOS</h2><p id="result-count" aria-live="polite">Carregando produtos...</p></div><span>PRETO · DOURADO · FUTEBOL</span></div>
+          <div class="catalog-grid" id="catalog-grid"></div>
+          <div class="catalog-empty" id="catalog-empty" hidden><h3>Nenhum produto encontrado</h3><p>Altere os filtros para ver outros produtos.</p><button class="btn btn-gold" id="empty-clear" type="button">LIMPAR FILTROS</button></div>
+        </section>
+      </div>
+    </main>
+    <div id="shop-footer"></div>
+  </div>
+  <div id="shop-overlay" class="shop-overlay" hidden></div>
+  <aside id="shop-cart" class="shop-cart" role="dialog" aria-modal="true" aria-labelledby="shop-cart-title" hidden></aside>
+  <div id="shop-toast" class="shop-toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/shop.js"></script>
+</body>
+</html>

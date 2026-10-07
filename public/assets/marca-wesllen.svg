@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Wesllen Imports">
+  <defs><radialGradient id="bg"><stop stop-color="#201909"/><stop offset="1" stop-color="#050505"/></radialGradient></defs>
+  <circle cx="60" cy="60" r="57" fill="url(#bg)" stroke="#e7a91b" stroke-width="3"/>
+  <circle cx="60" cy="60" r="50" fill="none" stroke="#77550f"/>
+  <path d="m42 27 8 5 10-12 10 12 8-5-4 17H46z" fill="none" stroke="#f5bd28" stroke-width="3" stroke-linejoin="round"/>
+  <text x="60" y="74" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-weight="900" font-style="italic" font-size="47">W</text>
+  <text x="60" y="92" text-anchor="middle" fill="#f5bd28" font-family="Arial,sans-serif" font-weight="800" font-size="10" letter-spacing="2">IMPORTS</text>
+</svg>

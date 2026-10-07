@@ -1,0 +1,277 @@
+/* Home refinements based on the supplied Wesllen Imports mockup. */
+.demo-price-note {
+  margin: -7px 0 12px;
+  color: #e5c16b;
+  font-size: 11px;
+  font-weight: 700;
+}
+.demo-detail-note {
+  margin: 14px 0;
+  color: #705014;
+  font-size: 13px;
+  font-weight: 700;
+}
+.product-detail #add-to-cart:disabled {
+  background: #d8d3c7;
+  border-color: #c7c1b5;
+  color: #47433a;
+  cursor: not-allowed;
+}
+.showcase-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.showcase-grid .product-visual {
+  aspect-ratio: 1 / .94;
+}
+
+.showcase-grid .product-info {
+  padding: 12px 13px 14px;
+}
+
+.showcase-grid .product-info h3 {
+  font-size: 17px;
+}
+
+.showcase-grid .product-price {
+  font-size: 23px;
+  margin-bottom: 12px;
+}
+
+.showcase-grid .btn {
+  min-height: 39px;
+  font-size: 15px;
+}
+
+@media (min-width: 561px) and (max-width: 1100px) {
+  .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.personalize-section {
+  padding-top: 12px;
+  padding-bottom: 24px;
+}
+
+.personalize-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 325px;
+  overflow: hidden;
+  border: 1px solid #b58013;
+  border-radius: 6px;
+  background:
+    linear-gradient(110deg, #090909 0%, #0d0c08 48%, #36200a 80%, #0b0804 100%);
+  box-shadow: inset 0 0 0 1px #000, 0 14px 30px #0008;
+}
+
+.personalize-panel::before,
+.personalize-panel::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  height: 4px;
+  width: 70%;
+  background: linear-gradient(90deg, transparent, #ffd66d, transparent);
+  filter: blur(5px);
+  transform: rotate(-24deg);
+}
+
+.personalize-panel::before { right: -18%; top: 27%; }
+.personalize-panel::after { right: -4%; bottom: 14%; width: 50%; }
+
+.personalize-copy {
+  position: relative;
+  z-index: 3;
+  width: 62%;
+  padding: 30px 48px;
+}
+
+.personalize-kicker {
+  display: block;
+  margin-bottom: 11px;
+  color: var(--gold);
+  font: 800 14px Arial, Helvetica, sans-serif;
+  letter-spacing: 1.5px;
+}
+
+.personalize-copy h2 {
+  margin: 0 0 12px;
+  font: 900 clamp(37px, 4.3vw, 58px) / .88 Arial, Helvetica, sans-serif;
+  letter-spacing: .3px;
+  text-shadow: 2px 3px #000;
+}
+
+.personalize-copy h2 span { color: var(--gold); }
+
+.personalize-copy p {
+  max-width: 440px;
+  margin: 0 0 18px;
+  color: #e8e5dc;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.personalize-copy ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 18px;
+  max-width: 430px;
+  margin: 0 0 23px;
+  padding: 0;
+  list-style: none;
+}
+
+.personalize-copy li {
+  font: 700 15px Arial, Helvetica, sans-serif;
+}
+
+.personalize-copy li::before {
+  content: "✦";
+  color: var(--gold);
+  font: 16px Georgia, serif;
+  margin-right: 9px;
+}
+
+.personalize-copy .btn { min-height: 44px; }
+
+.personalize-art {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 40%;
+  overflow: hidden;
+  container-type: inline-size;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%);
+  mask-image: linear-gradient(90deg, transparent, #000 16%);
+}
+
+.personalize-art img {
+  position: absolute;
+  max-width: none;
+  width: 336.41%;
+  left: -102.56%;
+  top: -23.08cqw;
+  filter: contrast(1.1) saturate(1.05);
+}
+
+.footer-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-mark { width: 58px; height: 58px; flex: none; }
+.site-footer .footer-brand { line-height: .9; }
+.site-footer .footer-brand span { display: block; letter-spacing: 1px; }
+.site-footer .footer-links strong {
+  color: var(--gold);
+  font: 800 14px Arial, Helvetica, sans-serif;
+}
+
+
+
+@media (max-width: 820px) {
+  .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .personalize-copy { width: 66%; padding: 27px; }
+  .personalize-art { width: 43%; }
+  .personalize-copy h2 { font-size: 43px; }
+  .personalize-copy p { font-size: 13px; }
+}
+
+@media (max-width: 560px) {
+  .showcase-grid { gap: 9px; }
+  .showcase-grid .product-info { padding: 9px; }
+  .showcase-grid .product-info h3 {
+    display: -webkit-box;
+    min-height: 3.3em;
+    overflow: hidden;
+    white-space: normal;
+    line-height: 1.1;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    font-size: 15px;
+  }
+  .showcase-grid .product-price { font-size: 20px; margin-bottom: 9px; }
+  .showcase-grid .btn { min-height: 39px; font-size: 14px; }
+  .personalize-section { padding-top: 11px; }
+  .personalize-panel { display: block; min-height: 0; }
+  .personalize-art {
+    inset: 0 0 auto;
+    width: 100%;
+    height: 235px;
+    -webkit-mask-image: linear-gradient(0deg, transparent 0%, #000 43%);
+    mask-image: linear-gradient(0deg, transparent 0%, #000 43%);
+  }
+  .personalize-copy { width: 100%; padding: 226px 20px 23px; }
+  .personalize-kicker { font-size: 12px; margin-bottom: 8px; }
+  .personalize-copy h2 { font-size: clamp(28px, 8.8vw, 40px); }
+  .personalize-copy p { margin-bottom: 14px; }
+  .personalize-copy ul { gap: 7px 10px; margin-bottom: 18px; }
+  .personalize-copy li { font-size: 13px; }
+  .personalize-copy li::before { margin-right: 5px; }
+  .personalize-copy .btn { width: 100%; }
+  .site-footer { gap: 18px; }
+  .site-footer .footer-mark { width: 54px; height: 54px; }
+}
+
+@media (max-width: 370px) {
+  .showcase-grid { grid-template-columns: 1fr; }
+  .showcase-grid .product-visual { aspect-ratio: 1 / .8; }
+}
+
+@media (max-width: 390px) {
+  .section-heading { flex-wrap: wrap; gap: 7px; }
+  .section-heading h2 { white-space: normal; }
+  .section-heading .section-link { margin-left: 0; }
+}
+
+@media (min-width: 821px) and (max-height: 800px) {
+  .hero { height: 350px; }
+  .hero-copy { top: 20px; }
+  .hero-eyebrow { font-size: clamp(31px, 4vw, 49px); }
+  .hero h1 { font-size: clamp(65px, 7.2vw, 95px); margin-bottom: 8px; }
+  .hero h2 { font-size: clamp(28px, 3vw, 35px); margin-bottom: 10px; }
+  .hero-description { font-size: 13px; margin-bottom: 13px; }
+  .hero-buttons .btn { min-height: 40px; }
+  #times { padding-block: 16px; }
+  #times .section-heading { margin-bottom: 12px; }
+  #times .team-card { height: 92px; }
+  #times .team-emblem { height: 50px; font-size: 34px; }
+}
+
+@media(max-width:820px) {
+  .section-link { min-height:44px; display:inline-flex; align-items:center; padding:0 2px; }
+}
+.whatsapp-float svg { width:31px; height:31px; }
+@media(max-width:560px) {
+  .site-header .icon-button { width:44px; height:44px; }
+  .showcase-grid .btn { min-height:44px; }
+  .site-footer nav a { padding:5px 0; }
+}
+
+/* Cleaner type while keeping the proportions of the original banner. */
+@media (min-width: 821px) {
+  .hero h2 { max-width: 340px; font-size: 37px; line-height: 1; }
+}
+
+@media (max-width: 560px) {
+  .section-heading { gap: 8px; }
+  .section-heading h2 { gap: 6px; font-size: 21px; }
+  .section-heading h2:after { width: 20px; }
+  .section-link { font-size: 11px; }
+}
+
+.hero-art img{width:100%;height:100%;left:0;top:0;transform:none;object-fit:cover;filter:none}.personalize-art img{width:100%;height:100%;left:0;top:0;object-fit:cover;filter:none}
+@media(max-width:1100px){.hero-art img{object-position:right center}}
+
+#times .team-scroll{display:flex;flex-wrap:wrap;gap:10px;overflow:visible;padding:3px 2px 9px}
+#times .team-card{flex:0 0 calc((100% - 90px)/10);min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s}
+#times .team-card:hover,#times .team-card:focus-visible{transform:translateY(-3px);border-color:#f5bb25;box-shadow:0 7px 18px #0009}
+#times .team-emblem{width:64px;height:64px;display:grid;place-items:center}
+#times .team-emblem img{display:block;width:100%;height:100%;object-fit:contain}
+#times .team-card strong{font-size:12px;line-height:1.15;text-align:center;overflow-wrap:anywhere}
+#times .teams-empty{color:#aaa;font-size:14px;margin:10px 0}
+@media(max-width:820px){#times .team-card{flex-basis:calc((100% - 50px)/6)}#times .team-card:nth-child(n+7){display:none}}
+@media(max-width:560px){#times .team-card{flex-basis:calc((100% - 30px)/4)}#times .team-card:nth-child(n+5){display:none}#times .team-emblem{width:52px;height:52px}#times .team-card strong{font-size:11px}}

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Camisas de futebol importadas, personalização com nome e número e presentes exclusivos da Wesllen Imports. Faça seu pedido pelo WhatsApp.">
+  <title>Wesllen Imports | Paixão pelo Futebol</title>
+  <link rel="icon" type="image/png" href="/assets/logo-wesllen-oficial.png">
+  <link rel="preload" as="image" href="/assets/hero-wesllen-poster.jpg" fetchpriority="high">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/home.css">
+  <link rel="stylesheet" href="/brand.css">
+  <link rel="stylesheet" href="/hero-carousel.css">
+</head>
+<body>
+  <div class="site-frame">
+    <header class="site-header" id="inicio">
+      <button class="icon-button mobile-only" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false"><span class="hamburger"></span></button>
+      <a class="brand" href="#inicio" aria-label="Wesllen Imports, início">
+        <span class="brand-mark"><img src="/assets/logo-wesllen-oficial.png" alt="" class="brand-logo"></span>
+        <span class="brand-name">WESLLEN <strong>IMPORTS</strong></span>
+      </a>
+      <nav class="main-nav" id="main-nav" aria-label="Navegação principal">
+        <a class="active" href="#inicio">INÍCIO</a><a href="#camisas" data-category="Camisas">CAMISAS</a><a href="#personalizados" data-category="Personalizados">PERSONALIZADOS</a><a href="#categorias" data-category="Canecas">CANECAS</a><a href="#categorias" data-category="Bonés">BONÉS</a><a href="/catalogo?categoria=Promoções" data-promo="true">PROMOÇÕES</a>
+      </nav>
+      <div class="header-actions">
+        <label class="search-box"><span class="sr-only">Buscar produtos</span><input id="search-input" type="search" placeholder="Buscar produtos..." autocomplete="off"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m16 16 5 5"/></svg></label>
+        <button class="icon-button search-mobile mobile-only" id="search-toggle" aria-label="Abrir busca"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m16 16 5 5"/></svg></button>
+        <a class="icon-button account-link" href="#contato" aria-label="Contato"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.5"/><path d="M4.5 21c0-4 3-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/></svg></a>
+        <button class="icon-button cart-trigger" id="cart-open" aria-label="Abrir carrinho"><svg viewBox="0 0 24 24"><path d="M2 3h2l2 12h13l2-9H5"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg><span class="cart-count" id="cart-count">0</span></button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero-carousel" id="hero-carousel" aria-label="Destaques da Wesllen Imports" aria-roledescription="carrossel">
+        <div class="hero-carousel-stage" id="hero-carousel-stage">
+          <div class="hero-carousel-slide is-active" id="hero-first-panel" role="group" aria-roledescription="slide" aria-label="1 de 5: Vídeo de apresentação da Wesllen Imports" aria-hidden="false">
+            <video id="hero-first-video" src="/assets/hero-wesllen-video-fast.mp4" poster="/assets/hero-wesllen-poster.jpg" preload="auto" autoplay muted playsinline webkit-playsinline aria-label="Vídeo de apresentação da Wesllen Imports" disablepictureinpicture></video>
+          </div>
+        </div>
+        <div class="hero-carousel-controls" aria-label="Controles do carrossel">
+          <button class="hero-carousel-arrow" id="hero-carousel-prev" type="button" aria-label="Slide anterior"><span aria-hidden="true">‹</span></button>
+          <div class="hero-carousel-dots" id="hero-carousel-dots"></div>
+          <button class="hero-carousel-arrow" id="hero-carousel-next" type="button" aria-label="Próximo slide"><span aria-hidden="true">›</span></button>
+        </div>
+        <nav class="hero-carousel-responsive-actions" id="hero-carousel-responsive-actions" aria-label="Acessos do destaque" hidden></nav>
+        <p class="sr-only" id="hero-carousel-status" aria-live="polite"></p>
+      </section>
+
+      <section class="section teams-section" id="times" aria-labelledby="teams-title">
+        <div class="section-heading"><h2 id="teams-title">ESCOLHA SEU TIME</h2><button class="section-link" id="show-all-teams">Ver todos <span>→</span></button></div>
+        <div class="team-scroll" id="team-list"></div>
+      </section>
+
+      <section class="section products-section" id="camisas" aria-labelledby="products-title">
+        <div class="section-heading"><h2 id="products-title">MAIS VENDIDAS</h2><button class="section-link" id="show-all-products">Ver todos <span>→</span></button></div>
+        <div class="filter-status" id="filter-status" hidden></div>
+        <div class="showcase-grid" id="showcase-grid"></div>
+        <div class="empty-state" id="empty-state" hidden><h3>Nenhum produto encontrado</h3><p>Tente outra busca ou veja todos os produtos.</p><button class="btn btn-gold" id="clear-filters">VER TODOS</button></div>
+      </section>
+
+      <section class="section personalize-section" id="personalizados" aria-labelledby="personalize-title">
+        <div class="personalize-panel">
+          <div class="personalize-copy">
+            <span class="personalize-kicker">WESLLEN IMPORTS · SUA CAMISA, SUA HISTÓRIA</span>
+            <h2 id="personalize-title">PERSONALIZE<br><span>DO SEU JEITO!</span></h2>
+            <p>Seu nome, seu número e a paixão pelo futebol em uma camisa feita para você.</p>
+            <ul aria-label="Opções de personalização">
+              <li>Nome e número</li><li>Escolha do tamanho</li><li>Vários times</li><li>Produtos personalizados</li>
+            </ul>
+            <button class="btn btn-gold" data-personalize="true">CRIAR MEU PERSONALIZADO <span>›</span></button>
+          </div>
+          <div class="personalize-art" role="img" aria-label="Exemplo ilustrativo de camisa preta para personalização"><img src="/assets/demo/personalizada-preta.webp" alt=""></div>
+        </div>
+      </section>
+
+      <section class="section categories-section" id="categorias" aria-labelledby="categories-title">
+        <div class="section-heading"><h2 id="categories-title">MAIS QUE CAMISAS</h2></div>
+        <div class="category-grid" id="category-grid"></div>
+      </section>
+
+      <section class="benefits" aria-label="Benefícios da loja"><div><span>♧</span>PRODUTOS<br>IMPORTADOS</div><div><span>◇</span>QUALIDADE<br>GARANTIDA</div><div><span>◉</span>ATENDIMENTO<br>VIA WHATSAPP</div><div><span>▣</span>PERSONALIZAÇÃO<br>COM NOME E NÚMERO</div><div><span>♔</span>PRESENTES<br>EXCLUSIVOS</div></section>
+    </main>
+
+    <footer class="site-footer" id="contato"><div><a class="footer-identity" href="#inicio" aria-label="Wesllen Imports, voltar ao início"><span class="brand-mark footer-mark"><img src="/assets/logo-wesllen-oficial.png" alt="" class="brand-logo"></span><span class="footer-brand">WESLLEN <span>IMPORTS</span></span></a><p>Paixão pelo Futebol</p></div><nav aria-label="Rodapé"><a href="#camisas" data-all-products="true">Produtos</a><a href="#camisas" data-category="Camisas">Camisas</a><a href="#personalizados" data-category="Personalizados">Personalizados</a><a href="#categorias" data-category="Canecas">Canecas</a><a href="#categorias" data-category="Bonés">Bonés</a><a href="/catalogo?categoria=Promoções" data-promo="true">Promoções</a><a href="#contato">Contato</a></nav><div class="footer-links"><strong>ATENDIMENTO VIA WHATSAPP</strong><a id="footer-whatsapp" target="_blank" rel="noopener">WhatsApp</a><a id="footer-instagram" target="_blank" rel="noopener" hidden>Instagram</a><a href="/admin">Painel administrativo</a></div><small>© <span id="year"></span> Wesllen Imports. Pagamento e entrega combinados pelo WhatsApp.</small></footer>
+  </div>
+
+  <button class="whatsapp-float" id="whatsapp-float" aria-label="Fale com a Wesllen Imports" title="Fale com a Wesllen Imports"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.4 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20.3l1.5-4.7a8.4 8.4 0 1 1 15.9-4.1Z"/><path d="M8.3 8.4c.6 3 2.7 5.2 5.7 6.1l1.8-1.2 1.7 1c-.2 1.4-1.3 2.2-2.8 2.1-3.6-.3-7.8-4.5-8.1-.1-1.5.7-2.6 2.1-2.8l1.1 1.7-1.2 1.8Z"/></svg><em>Fale com a Wesllen Imports</em></button>
+  <div class="overlay" id="overlay" hidden></div>
+  <section class="product-modal" id="product-modal" role="dialog" aria-modal="true" aria-labelledby="product-name" hidden><button class="close-button" id="product-close" aria-label="Fechar">×</button><div id="product-content"></div></section>
+  <aside class="cart-drawer" id="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-heading" hidden><div class="drawer-head"><h2 id="cart-heading">Meu Carrinho</h2><button class="close-button" id="cart-close" aria-label="Fechar carrinho">×</button></div><div id="cart-items" class="cart-items"></div><div class="cart-bottom"><div class="cart-total"><span>Total dos produtos</span><strong id="cart-total">R$ 0,00</strong></div><form id="checkout-form"><label>Nome<input id="customer-name" required maxlength="100" autocomplete="name" placeholder="Seu nome"></label><label>Cidade<input id="customer-city" required maxlength="100" autocomplete="address-level2" placeholder="Sua cidade"></label><label>Observação (opcional)<textarea id="customer-note" maxlength="500" rows="2" placeholder="Detalhes para combinar"></textarea></label><button class="btn btn-whatsapp" type="submit"><span>◉</span> FINALIZAR PEDIDO NO WHATSAPP</button></form><p class="checkout-note">Pagamento e entrega são combinados diretamente com Wesley no WhatsApp.</p><p class="form-error" id="checkout-error" role="alert" hidden></p></div></aside>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/app.js"></script>
+  <script type="module" src="/hero-carousel.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "wesllen-imports",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "build": "npm run check",
+    "admin:hash": "node scripts/hash-admin-password.mjs",
+    "supabase:seed": "node scripts/seed-supabase.mjs",
+    "supabase:storage-check": "node scripts/check-storage.mjs",
+    "supabase:live-check": "node scripts/check-live-connection.mjs",
+    "supabase:audit": "node scripts/audit-supabase.mjs",
+    "release:prepare": "node scripts/prepare-release.mjs",
+    "check": "node --check server.js && node --check api/index.js && node --check public/demo-products.js && node --check supabase-store.js && node --check teams.js && node --check publication.js && node --check order.js && node --check scripts/prepare-release.mjs && node --check scripts/seed-supabase.mjs && node --check scripts/check-storage.mjs && node --check scripts/check-live-connection.mjs && node --check scripts/audit-supabase.mjs && node --check public/home-teams.js && node --check public/app.js && node --check public/shop.js && node --check public/admin.js && node --check public/hero-carousel.js",
+    "test": "node --test test/*.test.js"
+  }
+}
