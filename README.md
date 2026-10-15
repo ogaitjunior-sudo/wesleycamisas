@@ -32,7 +32,9 @@ O servidor recusa iniciar em produção se `ADMIN_PASSWORD_HASH` estiver ausente
 
 Para montar uma pasta de prévia do deploy sem credenciais ou dados locais, use `npm run release:prepare`. O comando cria `release-preview-*` com o código e recursos públicos, sem `data`, senhas, orçamentos ou uploads locais. Essa pasta é ignorada pelo Git. O catálogo deve estar no Supabase e as fotos reais devem ser enviadas pelo painel após configurar o Storage. O arquivo `data/admin-access.txt` também não é servido pela aplicação, que expõe somente `public/`.
 
-Nenhuma publicação é feita por este projeto automaticamente.
+Depois do deploy inicial do código, cadastrar produtos não exige outro deploy: o painel envia as fotos ao Supabase Storage e salva o catálogo no Supabase. A API pública lê o banco em cada consulta, responde com `Cache-Control: no-store` e entrega somente produtos publicados e completos. O PWA não armazena respostas da API. Abas abertas atualizam o catálogo ao voltar ao foco e periodicamente.
+
+No formulário de produto, **Publicado** é o padrão para novos cadastros; **Rascunho** e **Inativo** ficam ocultos. Para publicar, confirme o preço e informe nome, categoria, foto real enviada, tipo de entrega e estoque quando for pronta entrega. Camisas exigem time ativo e tamanho. Se faltar algo, o servidor salva o item como rascunho e informa o que precisa ser completado. O painel, a loja e as rotas de time consultam o mesmo catálogo do Supabase em produção. A implantação do código inicial ainda precisa ser feita uma vez antes de validar o fluxo no domínio oficial.
 
 ## Times e clubes
 

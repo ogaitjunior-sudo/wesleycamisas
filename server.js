@@ -307,6 +307,7 @@ const server = http.createServer(async (req, res) => {
       const ids=new Set();
       for(const product of next.products){
         if(!product.id||ids.has(product.id)||!Number.isFinite(Number(product.price))||Number(product.price)<0) return json(res,400,{error:'Produto inválido ou duplicado.'});
+        if(product.status!=null&&!['published','draft','inactive'].includes(product.status))return json(res,400,{error:'Status de produto inválido.'});
         ids.add(product.id);
         if(product.stock!=null&&(!Number.isInteger(Number(product.stock))||Number(product.stock)<0))return json(res,400,{error:'Estoque inválido.'});
         if(product.promoPrice!=null&&(!Number.isFinite(Number(product.promoPrice))||Number(product.promoPrice)<=0||Number(product.promoPrice)>=Number(product.price)))return json(res,400,{error:'Preço promocional inválido.'});
@@ -347,6 +348,10 @@ const server = http.createServer(async (req, res) => {
       if(teamLogo&&match[1]==='jpeg')return json(res,400,{error:'Use PNG ou WebP para escudos.'});
       const bytes = Buffer.from(match[2], 'base64');
       if (bytes.length > 5_000_000) return json(res, 400, { error: 'Imagem acima de 5 MB.' });
+      const validImage = match[1] === 'png' ? bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+        : match[1] === 'jpeg' ? bytes.length >= 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
+        : bytes.length >= 12 && bytes.toString('ascii',0,4) === 'RIFF' && bytes.toString('ascii',8,12) === 'WEBP';
+      if (!validImage) return json(res, 400, { error: 'O arquivo não é uma imagem válida do formato escolhido.' });
       const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
       const filename = `${teamLogo?'team-logos/':''}${crypto.randomUUID()}.${ext}`;
       const url = supabase ? await supabase.uploadPhoto(filename, `image/${match[1]}`, bytes) : `/uploads/${filename}`;

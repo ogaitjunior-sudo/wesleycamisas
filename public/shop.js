@@ -137,6 +137,14 @@ function initCatalog() {
   renderCatalog();
 }
 
+function refreshCatalogFilters() {
+  const category=$('#filter-category').value, team=$('#filter-team').value;
+  $('#filter-category').innerHTML='<option value="">Todas as categorias</option>'+[...(catalog.productCategories||[]),'Promoções'].map(item=>`<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('');
+  $('#filter-team').innerHTML='<option value="">Todos os times</option>'+catalog.categories.filter(item=>item.is_active).map(item=>`<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('');
+  $('#filter-category').value=category;
+  $('#filter-team').value=team;
+}
+
 function teamTile(team) {
   return `<a class="team-library-card" href="/times/${encodeURIComponent(team.slug)}"><span class="team-library-logo"><img src="${escapeHtml(team.logo_url||'/assets/escudo-pendente.svg')}" alt="" loading="lazy"></span><strong>${escapeHtml(team.name)}</strong><small>${escapeHtml([team.country,team.league].filter(Boolean).join(' · ')||team.category)}</small></a>`;
 }
@@ -153,7 +161,7 @@ function initTeams() {
   }
   const team=sorted.find(item=>item.slug===slug);
   if(!team){$('#teams-page').innerHTML='<div class="catalog-empty"><h1>Time não encontrado</h1><a class="btn btn-gold" href="/times">VER TIMES</a></div>';return;}
-  const products=catalog.products.filter(product=>product.available&&['Camisas','Personalizados'].includes(product.category)&&(product.team_id||product.team)===team.id);
+  const products=catalog.products.filter(product=>product.available&&(/^camisas?\b/i.test(String(product.category))||product.category==='Personalizados')&&(product.team_id||product.team)===team.id);
   document.title=`Camisas do ${team.name} | ${catalog.settings.name}`;
   $('#teams-breadcrumb').textContent=team.name;
   const heading=team.category==='Seleções'?(team.id==='selecoes'?'CAMISAS DE SELEÇÕES':`CAMISAS · ${team.name.toLocaleUpperCase('pt-BR')}`):team.category==='Retrô'?'CAMISAS RETRÔ':`CAMISAS DO ${team.name.toLocaleUpperCase('pt-BR')}`;
@@ -170,7 +178,7 @@ function customizationFields(product) {
 
 function renderProduct() {
   const product = catalog.products.find(item => item.id === params.get('id'));
-  if (!product || !product.available) { $('#product-page').innerHTML = '<div class="catalog-empty product-missing"><h1>Produto não encontrado</h1><p>Veja os produtos disponíveis no catálogo.</p><a class="btn btn-gold" href="/catalogo">VER CATÁLOGO</a></div>'; return; }
+  if (!product || !product.available) { currentProduct=null; $('#product-page').innerHTML = '<div class="catalog-empty product-missing"><h1>Produto não encontrado</h1><p>Veja os produtos disponíveis no catálogo.</p><a class="btn btn-gold" href="/catalogo">VER CATÁLOGO</a></div>'; return; }
   currentProduct = product;
   document.title = `${product.name} | Wesllen Imports`;
   $('#breadcrumb-product').textContent = product.name;
@@ -347,7 +355,7 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape') clos
 async function init() {
   chrome();
   try {
-    const response = await fetch('/api/catalog');
+    const response = await fetch('/api/catalog',{cache:'no-store'});
     if (!response.ok) throw new Error('Falha no catálogo');
     catalog = withDemoProducts(await response.json());
     updateContact();
@@ -359,3 +367,24 @@ async function init() {
   }
 }
 init();
+
+let lastRefresh=Date.now(), refreshInFlight=false;
+async function refreshCatalog() {
+  if(document.hidden||refreshInFlight||Date.now()-lastRefresh<5_000)return;
+  refreshInFlight=true;lastRefresh=Date.now();
+  try {
+    const response=await fetch('/api/catalog',{cache:'no-store'});
+    if(!response.ok)return;
+    const next=withDemoProducts(await response.json());
+    if(JSON.stringify(next)===JSON.stringify(catalog))return;
+    catalog=next;updateContact();renderCart();
+    if(page==='catalogo'){refreshCatalogFilters();renderCatalog();}
+    else if(page==='times')initTeams();
+    else if(page==='carrinho'){invalidateShipping('O catálogo mudou. Calcule o frete novamente.');renderCartPage();}
+    else if(!catalog.products.some(product=>product.id===params.get('id'))||!document.querySelector('.shop-custom-fields input:not(:placeholder-shown),.shop-custom-fields textarea:not(:placeholder-shown)'))renderProduct();
+  } catch { /* A consulta seguinte tentará novamente. */ }
+  finally {refreshInFlight=false;}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshCatalog();});
+window.addEventListener('focus',refreshCatalog);
+setInterval(refreshCatalog,30_000);

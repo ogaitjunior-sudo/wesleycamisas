@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSupabaseStore } from '../supabase-store.js';
-import { publicationIssues } from '../publication.js';
+import { publicationIssues, normalizedCatalog } from '../publication.js';
 
 test('Supabase usa somente a chave no servidor e persiste catálogo, pedidos e fotos', async () => {
   const calls = [];
@@ -51,4 +51,25 @@ test('publicação aceita apenas foto remota do bucket configurado', () => {
   const catalog = { productCategories: ['Bonés'] };
   assert.deepEqual(publicationIssues(product, catalog, '.', base), []);
   assert.ok(publicationIssues({ ...product, image: 'https://invalid.example/photo.webp' }, catalog, '.', base).includes('foto real enviada pelo painel'));
+  assert.ok(publicationIssues({ ...product, photos:['https://invalid.example/second.webp'] }, catalog, '.', base).includes('foto real enviada pelo painel'));
+  assert.ok(publicationIssues({ ...product, image:'', photos:[product.image] }, catalog, '.', base).includes('foto real enviada pelo painel'));
+});
+
+test('status publicado só entra na loja quando a camisa está completa', () => {
+  const base = 'https://example.supabase.co/storage/v1/object/public/wesllen-products/';
+  const shirt = { id:'real-test', name:'Camisa Real Madrid', category:'Camisas internacionais', team_id:'real-madrid',
+    price:199, priceConfirmed:true, image:`${base}12345678-1234-1234-1234-123456789abc.webp`, photos:[],
+    sizes:['M'], fulfillment:'order', available:true, status:'published' };
+  const catalog = { productCategories:['Camisas internacionais'], categories:[{id:'real-madrid',is_active:true}], products:[shirt] };
+  assert.deepEqual(publicationIssues(shirt,catalog,'.',base),[]);
+  assert.equal(normalizedCatalog(catalog,'.',base).products[0].status,'published');
+  const incomplete = normalizedCatalog({...catalog,products:[{...shirt,image:''}]},'.',base).products[0];
+  assert.equal(incomplete.status,'draft');
+  assert.equal(incomplete.available,false);
+  const inactive = normalizedCatalog({...catalog,products:[{...shirt,status:'inactive',available:false}]},'.',base).products[0];
+  assert.equal(inactive.status,'inactive');
+  assert.equal(inactive.available,false);
+  const draft = normalizedCatalog({...catalog,products:[{...shirt,status:'draft',available:false}]},'.',base).products[0];
+  assert.equal(draft.status,'draft');
+  assert.equal(draft.available,false);
 });

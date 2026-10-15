@@ -153,7 +153,18 @@ $('#search-toggle').addEventListener('click',()=>{$('.search-box').classList.tog
 $('#menu-toggle').addEventListener('click',()=>{const nav=$('#main-nav');const open=nav.classList.toggle('open');$('#menu-toggle').setAttribute('aria-expanded',String(open));});
 $('#whatsapp-float').addEventListener('click',()=>{const phone=String(catalog.settings.whatsapp||'').replace(/\D/g,'');if(!phone)return toast('WhatsApp da loja ainda não configurado.');window.open(`https://wa.me/${phone}?text=${encodeURIComponent(catalog.settings.defaultMessage||'Olá, Wesley! Gostaria de falar com a Wesllen Imports.')}`,'_blank','noopener');});
 async function init(){
-  try{const response=await fetch('/api/catalog');if(!response.ok)throw new Error();catalog=withDemoProducts(await response.json());updateHeader();renderTeams();renderProducts();renderCategories();renderCart();if(location.hash==='#carrinho')openLayer('cart');}
+  try{const response=await fetch('/api/catalog',{cache:'no-store'});if(!response.ok)throw new Error();catalog=withDemoProducts(await response.json());updateHeader();renderTeams();renderProducts();renderCategories();renderCart();if(location.hash==='#carrinho')openLayer('cart');}
   catch{$('#showcase-grid').innerHTML='<div class="empty-state"><h3>Não foi possível carregar a loja</h3><p>Atualize a página para tentar novamente.</p></div>';}
 }
 init();
+let lastRefresh=Date.now(), refreshInFlight=false;
+async function refreshCatalog(){
+  if(document.hidden||refreshInFlight||Date.now()-lastRefresh<5_000)return;
+  refreshInFlight=true;lastRefresh=Date.now();
+  try{const response=await fetch('/api/catalog',{cache:'no-store'});if(!response.ok)return;const next=withDemoProducts(await response.json());if(JSON.stringify(next)===JSON.stringify(catalog))return;catalog=next;updateHeader();renderTeams();renderProducts();renderCategories();renderCart();if(activeProduct&&!catalog.products.some(p=>p.id===activeProduct.id)){activeProduct=null;closeLayers();}}
+  catch{/* A consulta seguinte tentará novamente. */}
+  finally{refreshInFlight=false;}
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshCatalog();});
+window.addEventListener('focus',refreshCatalog);
+setInterval(refreshCatalog,30_000);

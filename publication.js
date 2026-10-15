@@ -8,15 +8,15 @@ export function publicationIssues(product, catalog, uploadDir, publicPhotoBase =
   if (!Number.isFinite(Number(product.price)) || Number(product.price) <= 0) issues.push('preço');
   if (product.priceConfirmed !== true) issues.push('preço não confirmado');
   const photos = [product.image, ...(Array.isArray(product.photos) ? product.photos : [])].filter(Boolean);
-  const uploaded = photos.some(url => {
+  const uploaded = photos.length > 0 && photos.every(url => {
     const match = /^\/uploads\/([a-f0-9-]+\.(?:png|jpg|webp))$/i.exec(String(url));
     if (match && fs.existsSync(path.join(uploadDir, match[1]))) return true;
     return Boolean(publicPhotoBase && String(url).startsWith(publicPhotoBase) &&
       /^[a-f0-9-]+\.(?:png|jpg|webp)$/i.test(String(url).slice(publicPhotoBase.length)));
   });
-  if (!uploaded) issues.push('foto real enviada pelo painel');
-  const shirt = product.category === 'Camisas' || /\bcamisa\b/i.test(String(product.name));
-  if (shirt && !catalog.categories?.some(team => team.id === (product.team_id || product.team))) issues.push('time / clube');
+  if (!uploaded || !product.image) issues.push('foto real enviada pelo painel');
+  const shirt = /^camisas?\b/i.test(String(product.category)) || /\bcamisa\b/i.test(String(product.name));
+  if (shirt && !catalog.categories?.some(team => team.id === (product.team_id || product.team) && team.is_active !== false)) issues.push('time / clube ativo');
   if (shirt && (!Array.isArray(product.sizes) || !product.sizes.some(size => ['P','M','G','GG','XG'].includes(size)))) issues.push('tamanhos');
   if (product.customizable && (!Array.isArray(product.personalizationFields) || product.personalizationFields.length === 0)) issues.push('campos de personalização');
   if (!['ready','order'].includes(product.fulfillment)) issues.push('tipo de entrega');
@@ -25,8 +25,10 @@ export function publicationIssues(product, catalog, uploadDir, publicPhotoBase =
 }
 
 export function normalizedCatalog(catalog, uploadDir, publicPhotoBase = '') {
-  return { ...catalog, products: catalog.products.map(product => ({
-    ...product,
-    available: product.available === true && publicationIssues(product, catalog, uploadDir, publicPhotoBase).length === 0
-  })) };
+  return { ...catalog, products: catalog.products.map(product => {
+    const requestedStatus = product.available === true ? 'published' : product.status === 'draft' ? 'draft' : 'inactive';
+    const status = requestedStatus === 'published' && publicationIssues(product, catalog, uploadDir, publicPhotoBase).length
+      ? 'draft' : requestedStatus;
+    return { ...product, status, available: status === 'published' };
+  }) };
 }
