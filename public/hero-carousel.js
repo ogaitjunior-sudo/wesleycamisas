@@ -12,6 +12,13 @@ const slides = [
   },
   {
     type: 'image',
+    officialArt: true,
+    desktop: '/assets/hero-wesllen-official.webp',
+    alt: 'Vista sua paixão: camisas de futebol e logomarca Wesllen Imports em arte preta e dourada',
+    label: 'Wesllen Imports: vista sua paixão e personalize do seu jeito'
+  },
+  {
+    type: 'image',
     desktop: '/assets/hero-personalize-wesllen.webp',
     tablet: '',
     mobile: '',
@@ -125,6 +132,28 @@ function makeImage(slide) {
   return picture;
 }
 
+function makeOfficialArt(slide) {
+  const art = document.createElement('div');
+  art.className = 'hero-official-art';
+  art.innerHTML = `
+    <div class="hero-official-wide">
+      <img src="${slide.desktop}" alt="${slide.alt}" decoding="async" fetchpriority="high">
+      <a class="hero-official-link hero-official-link--shirts" href="/catalogo?categoria=Camisas" aria-label="Ver camisas"></a>
+      <a class="hero-official-link hero-official-link--personalize" href="/catalogo?categoria=Personalizados" data-personalize="true" aria-label="Personalizar agora"></a>
+    </div>
+    <div class="hero-official-mobile">
+      <div class="hero-official-mobile-brand">
+        <img src="${slide.desktop}" alt="Camisas de futebol e logomarca Wesllen Imports" decoding="async">
+      </div>
+      <div class="hero-official-mobile-message">
+        <img src="${slide.desktop}" alt="Vista sua paixão: personalize do seu jeito" decoding="async">
+        <a class="hero-official-link hero-official-link--shirts" href="/catalogo?categoria=Camisas" aria-label="Ver camisas"></a>
+        <a class="hero-official-link hero-official-link--personalize" href="/catalogo?categoria=Personalizados" data-personalize="true" aria-label="Personalizar agora"></a>
+      </div>
+    </div>`;
+  return art;
+}
+
 function makeVideo(slide, index) {
   const video = index === 0 ? document.querySelector('#hero-first-video') || document.createElement('video') : document.createElement('video');
   video.dataset.src = slide.src;
@@ -166,7 +195,7 @@ function createSlide(slide, index) {
   panel.style.setProperty('--desktop-position', slide.desktopPosition || 'center center');
   panel.style.setProperty('--tablet-position', slide.tabletPosition || slide.desktopPosition || 'center center');
   panel.style.setProperty('--mobile-position', slide.mobilePosition || slide.tabletPosition || 'center center');
-  const media = slide.type === 'video' ? makeVideo(slide, index) : slide.type === 'image' ? makeImage(slide) : document.createElement('div');
+  const media = slide.type === 'video' ? makeVideo(slide, index) : slide.officialArt ? makeOfficialArt(slide) : slide.type === 'image' ? makeImage(slide) : document.createElement('div');
   if (slide.type === 'custom') media.className = 'hero-carousel-custom-backdrop';
   if (slide.href) {
     const link = document.createElement('a');
@@ -258,7 +287,8 @@ async function loadManagedSlides() {
       const id = new URL(href, location.origin).searchParams.get('id');
       return products.some(product => product.id === id && product.available) ? href : fallback;
     };
-    insertSlide(1, {
+    let managedStart = 2;
+    if (settings.heroImage) insertSlide(managedStart++, {
       type: settings.heroImage ? 'image' : 'custom',
       desktop: settings.heroImage || '',
       alt: settings.heroTitle || 'Destaques da Wesllen Imports',
@@ -289,7 +319,7 @@ async function loadManagedSlides() {
         tabletPosition: 'center center',
         mobilePosition: 'center center'
       }));
-    managedSlides.forEach((slide, index) => insertSlide(index + 2, slide));
+    managedSlides.forEach((slide, index) => insertSlide(managedStart + index, slide));
     if (activeIndex >= 0) {
       const active = slides[activeIndex];
       status.textContent = `Slide ${activeIndex + 1} de ${slides.length}: ${active.label || active.alt}`;
@@ -459,6 +489,7 @@ async function activate(index) {
   const previousPanel = panels[activeIndex];
   stopPlayback();
   activeIndex = next;
+  stage.classList.toggle('is-official', Boolean(slides[next].officialArt));
   panels.forEach((panel, panelIndex) => {
     const selected = panelIndex === next;
     panel.classList.toggle('is-active', selected);
