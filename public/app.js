@@ -9,11 +9,15 @@ let filter = { category:'', team:'', promo:false, query:'', all:false };
 let activeProduct = null;
 let currentPhoto = 0;
 let toastTimer;
-try { cart = JSON.parse(localStorage.getItem('wesllen-cart') || '[]'); if (!Array.isArray(cart)) cart=[]; } catch { cart=[]; }
+try {
+  const stored = JSON.parse(localStorage.getItem('wesllen-cart') || '[]');
+  cart = Array.isArray(stored) ? stored.filter(item => item && typeof item.productId === 'string' && Number.isInteger(Number(item.quantity)) && Number(item.quantity) > 0)
+    .map(item => ({ ...item, quantity: Math.min(99, Number(item.quantity)), personalization: item.personalization && typeof item.personalization === 'object' && !Array.isArray(item.personalization) ? item.personalization : {} })) : [];
+} catch { cart = []; }
 
 function art(product, className='product-visual', photoIndex=0) {
   const photos = [product.image, ...(product.photos || [])].filter(Boolean);
-  if (photos[photoIndex]) return `<div class="${className}"><img class="upload-image" src="${escapeHtml(photos[photoIndex])}" alt="${escapeHtml(product.name)}"></div>`;
+  if (photos[photoIndex]) return `<div class="${className}"><img class="upload-image" src="${escapeHtml(photos[photoIndex])}" alt="${escapeHtml(product.name)}" loading="${className === 'main-photo' ? 'eager' : 'lazy'}" decoding="async"></div>`;
   return `<div class="${className} pending-photo"><img class="placeholder-image" src="/assets/foto-pendente.svg" alt="Foto do produto em breve"></div>`;
 }
 function activePrice(product) { return Number(product.promoPrice || product.price || 0); }
@@ -34,8 +38,10 @@ function card(product) {
 function renderProducts() {
   const products = currentProducts();
   const featured = !filter.category && !filter.team && !filter.promo && !filter.query && !filter.all;
-  const shown = featured ? products.filter(p=>p.featured).slice(0,4) : products;
-  const title = filter.query ? 'RESULTADOS DA BUSCA' : filter.team ? 'CAMISAS DO SEU TIME' : filter.promo ? 'PROMOÇÕES' : filter.category ? filter.category.toUpperCase() : filter.all ? 'TODOS OS PRODUTOS' : 'MAIS VENDIDAS';
+  const realProducts = products.filter(product => !product.demo);
+  const highlights = realProducts.length ? realProducts.filter(product => product.featured) : products.filter(product => product.featured);
+  const shown = featured ? (highlights.length ? highlights : realProducts).slice(0,4) : products;
+  const title = filter.query ? 'RESULTADOS DA BUSCA' : filter.team ? 'CAMISAS DO SEU TIME' : filter.promo ? 'PROMOÇÕES' : filter.category ? filter.category.toUpperCase() : filter.all ? 'TODOS OS PRODUTOS' : realProducts.length ? 'PRODUTOS EM DESTAQUE' : 'MAIS VENDIDAS';
   $('#products-title').textContent=title;
   $('#showcase-grid').innerHTML=shown.map(card).join('');
   $('#empty-state').hidden=shown.length>0;
@@ -45,8 +51,15 @@ function renderProducts() {
   renderTeams();
 }
 function renderCategories() {
-  const categoryCards=[['Canecas','Personalizadas','caneca-preta'],['Bonés','Estilosos','bone-wesllen'],['Presentes','Personalizados','chaveiro-futebol'],['Produtos','Importados','kit-importados']];
-  $('#category-grid').innerHTML=categoryCards.map(([title,subtitle,id])=>{const product=catalog.products.find(p=>p.id===id && p.available);if(!product)return '';return `<button class="category-card" data-category="${escapeHtml(product.category)}" aria-label="${title} ${subtitle}"><div class="category-art">${art(product,'category-art-image')}</div><strong>${title.toUpperCase()}</strong><small>${subtitle}</small></button>`;}).join('');
+  const subtitles={Canecas:'Personalizadas',Bonés:'Estilosos',Presentes:'Personalizados',Importados:'Produtos selecionados'};
+  const categories=(catalog.productCategories||[]).filter(category=>!['Camisas','Personalizados'].includes(category))
+    .map(category=>[category,subtitles[category]||'Veja os produtos']);
+  $('#category-grid').innerHTML=categories.map(([category,subtitle])=>{
+    const candidates=catalog.products.filter(product=>product.available&&product.category===category);
+    const product=candidates.find(item=>!item.demo)||candidates[0];
+    if(!product)return '';
+    return `<button class="category-card" data-category="${escapeHtml(category)}" aria-label="Ver ${escapeHtml(category)}"><div class="category-art">${art(product,'category-art-image')}</div><strong>${escapeHtml(category.toLocaleUpperCase('pt-BR'))}</strong><small>${subtitle}</small></button>`;
+  }).join('');
   $('#categorias').hidden=!$('#category-grid').children.length;
 }
 function updateHeader() {
@@ -93,6 +106,10 @@ function openProduct(id) {
 }
 function addToCart(){
   if(!activeProduct || activeProduct.demo)return;
+  const alreadyInCart=cart.filter(item=>item.productId===activeProduct.id).reduce((total,item)=>total+Number(item.quantity||0),0);
+  if(activeProduct.fulfillment==='ready'&&activeProduct.stock!=null&&alreadyInCart+1>Number(activeProduct.stock)){
+    $('#detail-error').hidden=false;$('#detail-error').textContent='Quantidade acima do estoque disponível.';return;
+  }
   const size=$('.size-button.selected')?.dataset.size||'';
   if(activeProduct.sizes?.length && !size){$('#detail-error').hidden=false;$('#detail-error').textContent='Escolha um tamanho antes de adicionar.';return;}
   const personalization={name:$('#custom-name')?.value.trim()||'',number:$('#custom-number')?.value.trim()||'',phrase:$('#custom-phrase')?.value.trim()||'',note:$('#custom-note')?.value.trim()||''};
@@ -132,11 +149,11 @@ document.addEventListener('click',event=>{
   if(event.target.closest('[data-promo]')){event.preventDefault();location.href='/catalogo?categoria=Promoções';return;}
   const product=event.target.closest('[data-product]');if(product){location.href=`/produto?id=${encodeURIComponent(product.dataset.product)}`;return;}
   if(event.target.closest('[data-all-products]')){event.preventDefault();location.href='/catalogo';return;}
-  if(event.target.closest('[data-personalize]')){event.preventDefault();const real=catalog.products.find(p=>p.available&&!p.demo&&p.customizable&&['Camisas','Personalizados'].includes(p.category)&&(p.fulfillment!=='ready'||p.stock==null||Number(p.stock)>0));const demo=catalog.products.find(p=>p.id==='demo-personalizada-preta');location.href=real?`/produto?id=${encodeURIComponent(real.id)}`:demo?`/produto?id=${encodeURIComponent(demo.id)}`:'/catalogo?categoria=Personalizados';return;}
+  if(event.target.closest('[data-personalize]')){event.preventDefault();const real=catalog.products.find(p=>p.available&&!p.demo&&p.customizable&&['Camisas','Personalizados'].includes(p.category)&&(p.fulfillment!=='ready'||p.stock==null||Number(p.stock)>0));location.href=real?`/produto?id=${encodeURIComponent(real.id)}`:'/catalogo?categoria=Personalizados';return;}
   const size=event.target.closest('[data-size]');if(size){document.querySelectorAll('.size-button').forEach(x=>{x.classList.toggle('selected',x===size);x.setAttribute('aria-pressed',x===size?'true':'false')});return;}
   const photo=event.target.closest('[data-photo]');if(photo&&activeProduct){currentPhoto=Number(photo.dataset.photo);$('#main-product-art').innerHTML=art(activeProduct,'main-photo',currentPhoto);document.querySelectorAll('.thumbnail').forEach(x=>x.classList.toggle('active',x===photo));return;}
   if(event.target.closest('#add-to-cart')){addToCart();return;}
-  const qty=event.target.closest('[data-qty]');if(qty){const item=cart[Number(qty.dataset.index)];if(item){item.quantity+=Number(qty.dataset.qty);if(item.quantity<=0)cart.splice(Number(qty.dataset.index),1);saveCart();}return;}
+  const qty=event.target.closest('[data-qty]');if(qty){const item=cart[Number(qty.dataset.index)];if(item){const change=Number(qty.dataset.qty),product=catalog.products.find(p=>p.id===item.productId);if(change>0&&product?.fulfillment==='ready'&&product.stock!=null&&cart.filter(entry=>entry.productId===item.productId).reduce((sum,entry)=>sum+Number(entry.quantity||0),0)>=Number(product.stock)){toast('Estoque disponível atingido.');return;}item.quantity=Math.min(99,item.quantity+change);if(item.quantity<=0)cart.splice(Number(qty.dataset.index),1);saveCart();}return;}
   const remove=event.target.closest('[data-remove]');if(remove){cart.splice(Number(remove.dataset.remove),1);saveCart();return;}
   if(event.target.closest('#reset-filter')||event.target.closest('#clear-filters')){resetFilter();return;}
 });

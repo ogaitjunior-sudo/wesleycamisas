@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -16,13 +17,14 @@ const getPort = () => new Promise((resolve, reject) => {
   });
 });
 
-test('modo Vercel mantém sessão assinada e usa banco e Storage externos', async () => {
+test('modo Vercel preserva sessão, catálogo e configurações com Supabase simulado', async () => {
+  const tempDir = fs.mkdtempSync(path.join(root, '.release-test-'));
   const salt = crypto.randomBytes(16).toString('hex');
   const password = crypto.randomBytes(20).toString('base64url');
   const hash = `scrypt$${salt}$${crypto.scryptSync(password, salt, 64).toString('hex')}`;
   const port = await getPort();
   const env = { ...process.env, VERCEL:'1', NODE_ENV:'production', PORT:String(port),
-    DATA_DIR:path.join(root, 'test', 'fixtures', 'absent-hosted-data'),
+    DATA_DIR:path.join(tempDir, 'absent-hosted-data'), FIXTURE_STATE_FILE:path.join(tempDir, 'catalog.json'),
     ADMIN_PASSWORD_HASH:hash, SUPABASE_URL:'https://example.supabase.co', SUPABASE_SECRET_KEY:'sb_secret_fixture' };
   const start = () => new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['test/fixtures/hosted-server.mjs'], { cwd:root, env, stdio:['ignore','pipe','pipe'] });
@@ -32,9 +34,10 @@ test('modo Vercel mantém sessão assinada e usa banco e Storage externos', asyn
     child.stdout.on('data', data => { if (String(data).includes('Wesllen Imports:')) { clearTimeout(timer); resolve(child); } });
     child.once('exit', code => { clearTimeout(timer); reject(new Error(`Servidor terminou: ${code}. ${stderr}`)); });
   });
-  let child = await start();
+  let child;
   const base = `http://127.0.0.1:${port}`;
   try {
+    child = await start();
     assert.equal((await fetch(base)).status, 200);
     assert.equal((await fetch(`${base}/app.js`)).status, 200);
     const manifestResponse = await fetch(`${base}/manifest.webmanifest`);
@@ -65,8 +68,17 @@ test('modo Vercel mantém sessão assinada e usa banco e Storage externos', asyn
     assert.match(photo, /^https:\/\/example\.supabase\.co\/storage\/v1\/object\/public\/wesllen-products\//);
     const catalog = await (await fetch(`${base}/api/admin/catalog`, {headers:{cookie}})).json();
     catalog.products.push({id:'test-bone',name:'Boné de teste',category:'Bonés',price:50,priceConfirmed:true,image:photo,photos:[],available:true,fulfillment:'order',customizable:false});
+    catalog.products.push({id:'test-shirt',name:'Camisa Flamengo de teste',category:'Camisas',team_id:'flamengo',team:'flamengo',sizes:['M'],price:149.9,priceConfirmed:true,image:photo,photos:[],available:true,status:'published',fulfillment:'order',customizable:true,personalizationFields:['name','number'],personalizationPrice:25});
+    catalog.settings.announcement = 'Configuração persistida';
+    catalog.settings.internalToken = 'somente-no-painel';
     assert.equal((await fetch(`${base}/api/admin/catalog`, {method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify(catalog)})).status, 200);
-    assert.equal((await (await fetch(`${base}/api/catalog`)).json()).products.length, 1);
+    const published = await fetch(`${base}/api/catalog`);
+    assert.equal(published.headers.get('cache-control'), 'no-store');
+    const publicCatalog = await published.json();
+    assert.equal(publicCatalog.products.length, 2);
+    assert.equal(publicCatalog.settings.internalToken, undefined);
+    assert.equal(publicCatalog.products.find(product => product.id === 'test-shirt')?.team_id, 'flamengo');
+    assert.equal(publicCatalog.products.find(product => product.id === 'test-shirt')?.image, photo);
     const quote = await fetch(`${base}/api/quotes`, { method:'POST',headers:{'content-type':'application/json'},
       body:JSON.stringify({items:[{productId:'test-bone',quantity:1}],customer:{name:'Cliente Teste',city:'Cidade Teste'}}) });
     assert.equal(quote.status, 200);
@@ -74,8 +86,22 @@ test('modo Vercel mantém sessão assinada e usa banco e Storage externos', asyn
     child.kill();
     await new Promise(resolve => child.once('exit', resolve));
     child = await start();
-    assert.equal((await fetch(`${base}/api/admin/catalog`, {headers:{cookie}})).status, 200);
+    const persisted = await (await fetch(`${base}/api/admin/catalog`, {headers:{cookie}})).json();
+    assert.equal(persisted.settings.announcement, 'Configuração persistida');
+    assert.equal(persisted.settings.internalToken, 'somente-no-painel');
+    assert.equal(persisted.products.find(product => product.id === 'test-shirt')?.price, 149.9);
+    assert.equal((await (await fetch(`${base}/api/catalog`)).json()).products.length, 2);
+    persisted.products.find(product => product.id === 'test-shirt').available = false;
+    persisted.products.find(product => product.id === 'test-shirt').status = 'inactive';
+    assert.equal((await fetch(`${base}/api/admin/catalog`, {method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify(persisted)})).status, 200);
+    assert.equal((await (await fetch(`${base}/api/catalog`)).json()).products.some(product => product.id === 'test-shirt'), false);
+    persisted.products = persisted.products.filter(product => product.id !== 'test-bone');
+    assert.equal((await fetch(`${base}/api/admin/catalog`, {method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify(persisted)})).status, 200);
+    assert.equal((await (await fetch(`${base}/api/catalog`)).json()).products.length, 0);
+    assert.equal((await (await fetch(`${base}/api/admin/catalog`, {headers:{cookie}})).json()).products.some(product => product.id === 'test-bone'), false);
   } finally {
-    child.kill();
+    child?.kill();
+    if (path.dirname(path.resolve(tempDir)) !== root) throw new Error('Diretório temporário fora do projeto.');
+    fs.rmSync(tempDir, {recursive:true,force:true});
   }
 });

@@ -6,7 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = path.join(root, `release-preview-${Date.now()}-${process.pid}`);
 fs.mkdirSync(output, { recursive: false });
 
-for (const name of ['package.json', 'server.js', 'supabase-store.js', 'teams.js', 'order.js', 'publication.js', 'vercel.json', '.vercelignore']) {
+for (const name of ['package.json', 'server.js', 'supabase-store.js', 'teams.js', 'order.js', 'publication.js', 'shipping.js', 'vercel.json', '.vercelignore']) {
   fs.copyFileSync(path.join(root, name), path.join(output, name));
 }
 const localUploads = path.join(root, 'public', 'uploads');

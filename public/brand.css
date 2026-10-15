@@ -347,6 +347,49 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .admin-rename input:focus { border-color: var(--gold); }
 .mini-button.danger { color: #ff8c8c; }
 
+/* Ajustes compartilhados de leitura, imagens e interação. */
+.product-visual img.upload-image,
+.main-photo img.upload-image,
+.thumbnail img.upload-image,
+.cart-thumb img.upload-image { object-fit: contain; }
+.product-card,
+.shop-product-card,
+.category-card,
+.team-library-card,
+.admin-card,
+.cart-page-summary { border-radius: 10px; }
+.shop-product-info h1,
+.cart-page-heading h1,
+.team-detail-heading h1,
+.admin-top h1 { overflow-wrap: anywhere; }
+.team-library-card strong,
+.admin-team-card strong { overflow-wrap: anywhere; }
+.shop-toast,
+.admin-toast,
+.toast { max-width: min(92vw, 460px); white-space: normal; text-align: center; }
+.shop-card-info .btn,
+.product-info .btn,
+.cart-whatsapp-button,
+.login-card .btn { min-height: 44px; }
+
+@media (max-width: 650px) {
+  .shop-product-info h1 { font-size: clamp(28px, 8.5vw, 35px); }
+  .shop-detail-prices strong { font-size: clamp(28px, 8vw, 36px); }
+  .cart-shipping-option { flex-wrap: wrap; }
+  .cart-shipping-option span { min-width: 0; overflow-wrap: anywhere; }
+  .cart-shipping-option strong { margin-left: auto; }
+  .admin-card h2 { font-size: clamp(20px, 6vw, 24px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .product-card,
+  .shop-product-card,
+  .team-library-card,
+  .category-card { transition: none; }
+  .product-card:hover,
+  .shop-product-card:hover,
+  .team-library-card:hover { transform: none; }
+}
+
 @media (max-width: 1100px) {
   .site-header { gap: 12px; }
   .brand-name { font-size: 15px; }

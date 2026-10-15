@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { createSupabaseStore } from '../supabase-store.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+if (process.env.SUPABASE_TEST_PROJECT !== '1') {
+  throw new Error('Homologação com escrita exige SUPABASE_TEST_PROJECT=1 em um projeto Supabase separado para testes.');
+}
 const store = createSupabaseStore({ url: process.env.SUPABASE_URL, secret: process.env.SUPABASE_SECRET_KEY });
 if (!store) throw new Error('Configure SUPABASE_URL e SUPABASE_SECRET_KEY somente no ambiente do terminal.');
 const tempDir = fs.mkdtempSync(path.join(root, '.live-test-'));
@@ -91,7 +94,7 @@ async function removePhoto() {
 try {
   await store.verify();
   const initial = await store.readCatalog();
-  if (!initial || initial.products?.length !== 8 || initial.products.some(product => product.id === testId)) throw new Error('Catálogo remoto inesperado; teste cancelado para preservar dados existentes.');
+  if (!initial || initial.settings?.homologationEnvironment !== true || initial.products?.length !== 8 || initial.products.some(product => product.id === testId)) throw new Error('Catálogo remoto não está marcado como ambiente de homologação; teste cancelado para preservar dados existentes.');
   await start();
   if (!(await fetch(local)).ok || !(await fetch(`${local}/catalogo`)).ok) throw new Error('Páginas locais não abriram.');
   const publicBefore = await localJson('/api/catalog');

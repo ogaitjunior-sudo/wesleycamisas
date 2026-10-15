@@ -28,7 +28,7 @@ const slides = [
       benefits: ['NOME E NÚMERO', 'VÁRIOS TIMES', 'ESCOLHA DO TAMANHO', 'PRODUTOS PERSONALIZADOS']
     },
     hotspots: [
-      { label: 'CRIAR MEU PERSONALIZADO ›', href: '/produto?id=demo-personalizada-preta', x: 92, y: 575, width: 738, height: 90, embedded: true, personalize: true }
+      { label: 'CRIAR MEU PERSONALIZADO ›', href: '/catalogo?categoria=Personalizados', x: 92, y: 575, width: 738, height: 90, embedded: true, personalize: true }
     ]
   },
   {
@@ -77,6 +77,39 @@ const slides = [
   }
 ];
 
+// O banner salvo no painel é lido junto com o catálogo, sem precisar de novo deploy.
+const bannerRequest = new AbortController();
+const bannerTimeout = setTimeout(() => bannerRequest.abort(), 4000);
+try {
+  const response = await fetch('/api/catalog', { cache: 'no-store', signal: bannerRequest.signal });
+  if (response.ok) {
+    const { settings = {}, products = [] } = await response.json();
+    const availableHref = (href, fallback) => {
+      if (!href?.startsWith('/produto?id=')) return href;
+      const id = new URL(href, location.origin).searchParams.get('id');
+      return products.some(product => product.id === id && product.available) ? href : fallback;
+    };
+    slides.splice(1, 0, {
+      type: settings.heroImage ? 'image' : 'custom',
+      desktop: settings.heroImage || '',
+      alt: settings.heroTitle || 'Destaques da Wesllen Imports',
+      label: settings.heroTitle || 'Destaques da loja',
+      desktopPosition: 'center center',
+      caption: {
+        eyebrow: settings.heroEyebrow || '',
+        title: settings.heroTitle || '',
+        subtitle: settings.heroSubtitle || '',
+        description: settings.heroDescription || '',
+        actions: [
+          [settings.heroPrimaryLabel, availableHref(settings.heroPrimaryLink, '/catalogo')],
+          [settings.heroSecondaryLabel, availableHref(settings.heroSecondaryLink, '/catalogo?categoria=Personalizados')]
+        ].filter(([label, href]) => label && href && (href.startsWith('/') || /^https?:\/\//i.test(href)))
+      }
+    });
+  }
+} catch { /* O carrossel padrão continua disponível durante uma falha de rede. */ }
+finally { clearTimeout(bannerTimeout); }
+
 const carousel = document.querySelector('#hero-carousel');
 const stage = document.querySelector('#hero-carousel-stage');
 const dots = document.querySelector('#hero-carousel-dots');
@@ -121,11 +154,11 @@ function makeVideo(slide, index) {
   const video = index === 0 ? document.querySelector('#hero-first-video') || document.createElement('video') : document.createElement('video');
   if (video.getAttribute('src') !== slide.src) video.src = slide.src;
   video.poster = slide.poster || '';
-  video.preload = index === 0 ? 'auto' : 'metadata';
+  video.preload = 'metadata';
   video.muted = true;
   video.defaultMuted = true;
   video.playsInline = true;
-  video.autoplay = index === 0;
+  video.autoplay = false;
   video.setAttribute('playsinline', '');
   video.setAttribute('webkit-playsinline', '');
   video.setAttribute('aria-label', slide.label);
@@ -153,7 +186,8 @@ function createSlide(slide, index) {
   panel.style.setProperty('--desktop-position', slide.desktopPosition || 'center center');
   panel.style.setProperty('--tablet-position', slide.tabletPosition || slide.desktopPosition || 'center center');
   panel.style.setProperty('--mobile-position', slide.mobilePosition || slide.tabletPosition || 'center center');
-  const media = slide.type === 'video' ? makeVideo(slide, index) : makeImage(slide);
+  const media = slide.type === 'video' ? makeVideo(slide, index) : slide.type === 'image' ? makeImage(slide) : document.createElement('div');
+  if (slide.type === 'custom') media.className = 'hero-carousel-custom-backdrop';
   if (slide.href) {
     const link = document.createElement('a');
     link.href = slide.href;
@@ -170,6 +204,32 @@ function createSlide(slide, index) {
     brand.textContent = slide.brandCorrection;
     correction.append(brand, document.createTextNode(' · SUA CAMISA, SUA HISTÓRIA'));
     panel.append(correction);
+  }
+  if (slide.caption) {
+    const caption = document.createElement('div');
+    caption.className = 'hero-carousel-caption';
+    for (const [tag, value, className] of [
+      ['span', slide.caption.eyebrow, 'hero-carousel-caption-eyebrow'],
+      ['h2', slide.caption.title, ''],
+      ['strong', slide.caption.subtitle, 'hero-carousel-caption-subtitle'],
+      ['p', slide.caption.description, '']
+    ]) {
+      if (!value) continue;
+      const element = document.createElement(tag);
+      element.className = className;
+      element.textContent = value;
+      caption.append(element);
+    }
+    const actions = document.createElement('div');
+    actions.className = 'hero-carousel-caption-actions';
+    for (const [label, href] of slide.caption.actions) {
+      const link = document.createElement('a');
+      link.href = href;
+      link.textContent = label;
+      actions.append(link);
+    }
+    caption.append(actions);
+    panel.append(caption);
   }
   for (const hotspot of slide.hotspots || []) {
     const link = document.createElement('a');
@@ -287,7 +347,7 @@ function scheduleNext() {
 }
 
 function startPlayback() {
-  if (!isInView || document.hidden || activeIndex < 0) return;
+  if (!isInView || document.hidden || activeIndex < 0 || reducedMotion.matches) return;
   const video = panels[activeIndex].querySelector('video');
   if (!video) {
     if (!reducedMotion.matches) scheduleNext();

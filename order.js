@@ -64,7 +64,9 @@ export function quoteFrom(payload, catalog, shipping = null) {
   if (shippingEnabled && (!shipping || shipping.postalCode !== postalCode || !Number.isInteger(shipping.priceCents) || shipping.priceCents < 0)) throw new Error('Calcule novamente o frete antes de finalizar.');
   const total = Math.round(productsTotal * 100 + (shippingEnabled ? shipping.priceCents : 0)) / 100;
   const storeName=singleLine(catalog.settings?.name,100)||'Wesllen Imports';
-  const shippingLines = shippingEnabled ? `\nFrete: ${shipping.company ? `${shipping.company} · ` : ''}${shipping.name}\nPrazo estimado: ${shipping.deliveryDays} dia(s) útil(eis)\nValor do frete: ${money(shipping.priceCents / 100)}\nTotal do pedido: ${money(total)}` : '';
+  const shippingLines = shippingEnabled
+    ? `\nFrete: ${shipping.company ? `${shipping.company} · ` : ''}${shipping.name}\nPrazo estimado: ${shipping.deliveryDays} dia(s) útil(eis)\nValor do frete: ${money(shipping.priceCents / 100)}\nTotal do pedido: ${money(total)}`
+    : '\nFrete: a combinar com a loja\nTotal final: a confirmar após definir o frete';
   const deliveryLines = shippingEnabled ? `\nCEP: ${postalCode}\nEndereço: ${address}\nCidade/UF: ${city}/${state}` : `\nCidade: ${city}`;
   const message = `Olá, Wesley! Quero fazer este pedido na ${storeName}:\n\n${items.map(lineForItem).join('\n\n')}\n\nTotal dos produtos: ${money(productsTotal)}${shippingLines}\n\nNome: ${name}${deliveryLines}${note ? `\n\nObservação:\n${note}` : ''}\n\nGostaria de combinar a forma de pagamento e a entrega.`;
   return { id: crypto.randomUUID(), createdAt: new Date().toISOString(), customer: { name, city, note, ...(shippingEnabled ? { postalCode, address, state } : {}) }, items, productsTotal, shipping: shippingEnabled ? shipping : null, total, message };

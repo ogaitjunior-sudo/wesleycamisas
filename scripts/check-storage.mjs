@@ -1,6 +1,10 @@
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
+import { createSupabaseStore } from '../supabase-store.js';
 
+if (process.env.SUPABASE_TEST_PROJECT !== '1') {
+  throw new Error('Teste de upload exige SUPABASE_TEST_PROJECT=1 em um projeto Supabase separado para testes.');
+}
 const base = new URL(process.env.SUPABASE_URL || '');
 const secret = process.env.SUPABASE_SECRET_KEY || '';
 if (base.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(base.hostname) || !/^sb_secret_[A-Za-z0-9_-]+$/.test(secret)) {
@@ -8,6 +12,10 @@ if (base.protocol !== 'https:' || !/^[a-z0-9-]+\.supabase\.co$/i.test(base.hostn
 }
 const bucket = 'wesllen-products';
 const origin = base.origin;
+const catalog = await createSupabaseStore({url:origin,secret}).readCatalog();
+if (catalog?.settings?.homologationEnvironment !== true) {
+  throw new Error('O catálogo remoto não está marcado como ambiente de homologação; nenhum upload foi feito.');
+}
 const prefix = `_homologacao/${crypto.randomUUID()}/`;
 const attempted = [];
 const results = {};

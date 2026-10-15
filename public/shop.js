@@ -15,11 +15,15 @@ let shippingQuote = null;
 let selectedShipping = null;
 let shippingRequest = 0;
 let submittingOrder = false;
-try { cart = JSON.parse(localStorage.getItem('wesllen-cart') || '[]'); if (!Array.isArray(cart)) cart = []; } catch { cart = []; }
+try {
+  const stored = JSON.parse(localStorage.getItem('wesllen-cart') || '[]');
+  cart = Array.isArray(stored) ? stored.filter(item => item && typeof item.productId === 'string' && Number.isInteger(Number(item.quantity)) && Number(item.quantity) > 0)
+    .map(item => ({ ...item, quantity: Math.min(99, Number(item.quantity)), personalization: item.personalization && typeof item.personalization === 'object' && !Array.isArray(item.personalization) ? item.personalization : {} })) : [];
+} catch { cart = []; }
 
 function photo(product, className, photoIndex = 0) {
   const photos = [product.image, ...(product.photos || [])].filter(Boolean);
-  if (photos[photoIndex]) return `<div class="${className}"><img class="upload-image" src="${escapeHtml(photos[photoIndex])}" alt="${escapeHtml(product.name)}"></div>`;
+  if (photos[photoIndex]) return `<div class="${className}"><img class="upload-image" src="${escapeHtml(photos[photoIndex])}" alt="${escapeHtml(product.name)}" loading="${className === 'shop-large-photo' ? 'eager' : 'lazy'}" decoding="async"></div>`;
   return `<div class="${className} pending-photo"><img class="placeholder-image" src="/assets/foto-pendente.svg" alt="Foto do produto em breve"></div>`;
 }
 const activePrice = product => Number(product.promoPrice || product.price || 0);
@@ -186,6 +190,7 @@ function renderProduct() {
   const imageCount = Math.max(1, photos.length);
   $('#product-page').innerHTML = `<article class="shop-product-layout"><section class="shop-gallery" aria-label="Galeria de imagens"><div id="shop-main-photo">${photo(product,'shop-large-photo')}</div><div class="shop-thumbnails">${Array.from({length:imageCount},(_,index)=>`<button class="shop-thumbnail ${index===0?'selected':''}" type="button" data-photo="${index}" aria-label="Ver foto ${index+1}" aria-pressed="${index===0}">${photo(product,'shop-thumbnail-photo',index)}</button>`).join('')}</div></section><section class="shop-product-info"><p class="shop-eyebrow">${escapeHtml(product.category)}${product.team ? ` · ${escapeHtml(teamName(product.team))}` : ''}</p>${badge(product) && (product.image || product.promoPrice) ? `<span class="shop-product-badge">${badge(product)}</span>` : ''}<h1>${escapeHtml(product.name)}</h1><div class="shop-detail-prices">${product.promoPrice ? `<s>${money(product.price)}</s>` : ''}<strong>${money(activePrice(product))}</strong></div><p class="shop-description">${escapeHtml(product.description)}</p><p class="shop-stock ${product.available ? 'in-stock' : 'out-of-stock'}"><span></span>${product.available ? 'Disponível' : 'Indisponível no momento'}</p>${product.sizes?.length ? `<div class="shop-sizes"><h2>Tamanho <small id="selected-size-label">Selecione</small></h2><div role="group" aria-label="Selecione o tamanho">${product.sizes.filter(size=>['P','M','G','GG','XG'].includes(size)).map(size=>`<button type="button" class="shop-size" data-size="${escapeHtml(size)}" aria-pressed="false">${escapeHtml(size)}</button>`).join('')}</div></div>` : ''}${customizationFields(product)}<div class="shop-quantity-row"><div><span>Quantidade</span><div class="shop-quantity"><button type="button" id="qty-minus" aria-label="Diminuir quantidade">−</button><output id="qty-value">1</output><button type="button" id="qty-plus" aria-label="Aumentar quantidade">+</button></div></div><div class="shop-item-total"><span>Total do item</span><strong id="item-total">${money(activePrice(product))}</strong></div></div><div id="price-breakdown" class="shop-price-breakdown"></div><p id="product-error" class="shop-error" role="alert" hidden></p><button type="button" class="btn btn-gold shop-add" id="add-to-cart" ${product.available ? '' : 'disabled'}>ADICIONAR AO CARRINHO <span>›</span></button><p class="shop-product-note">O produto será adicionado ao carrinho para revisar seu pedido.</p></section></article>`;
   if(!product.image)$('#product-page .shop-product-badge')?.remove();
+  if (product.customizable && $('#custom-number')) $('#shop-main-photo').insertAdjacentHTML('afterend', '<p class="shirt-preview-note">Prévia ilustrativa: posição e cor da personalização podem variar na peça final.</p>');
   const stock=$('.shop-stock');stock.classList.toggle('in-stock',isPurchasable(product));stock.classList.toggle('out-of-stock',!isPurchasable(product));stock.innerHTML=`<span></span>${!isPurchasable(product)?'Indisponível no momento':product.fulfillment==='order'?'POR ENCOMENDA':product.stock!=null?`PRONTA ENTREGA · ${product.stock} disponíveis`:'Disponível'}`;
   $('#add-to-cart').disabled=!isPurchasable(product);
   if (product.demo) {
@@ -194,14 +199,32 @@ function renderProduct() {
     $('#product-page .shop-product-note').textContent = 'Foto e preço ilustrativos. Wesley poderá substituir este exemplo por um produto real no painel.';
   }
   $('#product-page').addEventListener('input', updateProductTotal);
+  renderPersonalizationPreview();
   updateProductTotal();
 }
 
 function personalization() {
   return { name: $('#custom-name')?.value.trim() || '', number: $('#custom-number')?.value.trim() || '', phrase: $('#custom-phrase')?.value.trim() || '', note: $('#custom-note')?.value.trim() || '' };
 }
+function renderPersonalizationPreview() {
+  const photo = $('#shop-main-photo .shop-large-photo');
+  if (!photo || !currentProduct?.customizable || !$('#custom-number')) return;
+  const custom = personalization();
+  let preview = photo.querySelector('.shirt-preview');
+  if (!preview) {
+    preview = document.createElement('div');
+    preview.className = 'shirt-preview';
+    preview.setAttribute('aria-label', 'Prévia ilustrativa da personalização');
+    preview.innerHTML = '<span class="shirt-preview-name"></span><strong class="shirt-preview-number"></strong>';
+    photo.append(preview);
+  }
+  preview.querySelector('.shirt-preview-name').textContent = custom.name.slice(0, 30).toLocaleUpperCase('pt-BR');
+  preview.querySelector('.shirt-preview-number').textContent = custom.number.slice(0, 3);
+  preview.hidden = !custom.name && !custom.number;
+}
 function updateProductTotal() {
   if (!currentProduct) return;
+  renderPersonalizationPreview();
   const extra = currentProduct.customizable && hasPersonalization(personalization()) ? Number(currentProduct.personalizationPrice || 0) : 0;
   $('#item-total').textContent = money((activePrice(currentProduct) + extra) * quantity);
   $('#price-breakdown').innerHTML = `<span>Produto ${money(activePrice(currentProduct))}</span>${extra ? `<span>Personalização + ${money(extra)}</span>` : ''}<span>Quantidade × ${quantity}</span>`;
@@ -337,7 +360,7 @@ document.addEventListener('click', event => {
   const size = event.target.closest('[data-size]');
   if (size) { selectedSize = size.dataset.size; document.querySelectorAll('.shop-size').forEach(button => { const active = button === size; button.classList.toggle('selected', active); button.setAttribute('aria-pressed', String(active)); }); $('#selected-size-label').textContent = selectedSize; $('#product-error').hidden = true; return; }
   const thumb = event.target.closest('[data-photo]');
-  if (thumb && currentProduct) { const index = Number(thumb.dataset.photo); $('#shop-main-photo').innerHTML = photo(currentProduct,'shop-large-photo',index); document.querySelectorAll('.shop-thumbnail').forEach(button => { const active = button === thumb; button.classList.toggle('selected',active); button.setAttribute('aria-pressed',String(active)); }); return; }
+  if (thumb && currentProduct) { const index = Number(thumb.dataset.photo); $('#shop-main-photo').innerHTML = photo(currentProduct,'shop-large-photo',index); renderPersonalizationPreview(); document.querySelectorAll('.shop-thumbnail').forEach(button => { const active = button === thumb; button.classList.toggle('selected',active); button.setAttribute('aria-pressed',String(active)); }); return; }
   if (event.target.closest('#qty-minus')) { quantity = Math.max(1, quantity - 1); updateProductTotal(); return; }
   if (event.target.closest('#qty-plus')) { quantity = Math.min(99, stockLimit(currentProduct), quantity + 1); updateProductTotal(); return; }
   if (event.target.closest('#add-to-cart')) { addToCart(); return; }

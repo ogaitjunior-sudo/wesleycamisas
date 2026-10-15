@@ -20,6 +20,10 @@ Os oito itens iniciais continuam no painel como rascunhos inativos. Um produto r
 
 ## Preparação para produção
 
+Configure `PUBLIC_SITE_URL` com a origem HTTPS definitiva da loja (por exemplo, `https://sua-loja.com/`). O servidor gera canonical, Open Graph, `robots.txt` e `sitemap.xml` com os produtos publicados. Pré-visualizações Vercel recebem `noindex`. O banner salvo no painel entra no carrossel ao carregar a Home, sem novo deploy; links para produtos indisponíveis levam ao catálogo.
+
+`npm run supabase:audit` apenas lê o catálogo e lista o Storage. Os scripts `supabase:live-check` e `supabase:storage-check` criam e removem dados de homologação: execute-os somente em um **projeto Supabase separado para testes**, com `SUPABASE_TEST_PROJECT=1` no processo e `settings.homologationEnvironment=true` no catálogo desse projeto. Eles recusam escrita sem as duas condições. Não use a chave do projeto de produção nesses testes.
+
 ### Cálculo de frete por CEP
 
 O frete automático usa somente a cotação da API Melhor Envio. Não compra etiqueta nem altera o pagamento por WhatsApp. Ele começa **desativado**, preservando o pedido atual. Para ativar, crie uma conta no Melhor Envio e configure no servidor `MELHOR_ENVIO_TOKEN` com permissão `shipping-calculate` e `MELHOR_ENVIO_USER_AGENT` no formato `Wesllen Imports (email-tecnico@dominio.com)`. Esses valores são segredos do backend; nunca use prefixos públicos. Para testar com uma conta sandbox, use também `MELHOR_ENVIO_SANDBOX=1` e o token correspondente.

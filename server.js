@@ -140,6 +140,16 @@ function json(res, status, value, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
   res.end(JSON.stringify(value));
 }
+const publicSettingNames = [
+  'name', 'slogan', 'whatsapp', 'instagram', 'instagramEnabled', 'shippingEnabled',
+  'announcement', 'address', 'defaultMessage', 'defaultPersonalizationPrice',
+  'demoShowcaseEnabled', 'demoHiddenIds', 'heroEyebrow', 'heroTitle', 'heroSubtitle',
+  'heroDescription', 'heroPrimaryLabel', 'heroPrimaryLink', 'heroSecondaryLabel',
+  'heroSecondaryLink', 'heroImage'
+];
+function publicSettings(settings) {
+  return Object.fromEntries(publicSettingNames.filter(name => Object.hasOwn(settings, name)).map(name => [name, settings[name]]));
+}
 function body(req, max = 8_000_000) {
   return new Promise((resolve, reject) => {
     let size = 0, chunks = [];
@@ -178,12 +188,56 @@ function sameOrigin(req) {
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
 const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.mp4': 'video/mp4', '.webmanifest': 'application/manifest+json' };
-function serveFile(req, res, pathname) {
+const escapeMarkup = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+function siteOrigin(req) {
+  const configured = String(process.env.PUBLIC_SITE_URL || '').trim();
+  if (configured) {
+    const url = new URL(configured);
+    if (url.protocol !== 'https:' || url.pathname !== '/' || url.search || url.hash) throw new Error('PUBLIC_SITE_URL deve ser a origem HTTPS da loja.');
+    return url.origin;
+  }
+  const host = String(req.headers.host || 'localhost');
+  if (!/^[a-z0-9.-]+(?::\d+)?$/i.test(host)) throw Object.assign(new Error('Host inválido.'), { status: 400 });
+  return `${production ? 'https' : 'http'}://${host}`;
+}
+function seoHtml(html, pathname, req, catalog) {
+  const origin = siteOrigin(req);
+  const url = new URL(req.url, origin);
+  let title = 'Wesllen Imports | Paixão pelo Futebol';
+  let description = 'Camisas de futebol, personalizados e presentes da Wesllen Imports. Faça seu pedido pelo WhatsApp.';
+  let image = `${origin}/icons/icon-512.png`;
+  let noindex = pathname === '/carrinho' || pathname.startsWith('/admin') || process.env.VERCEL_ENV === 'preview';
+  if (pathname === '/catalogo') title = 'Catálogo | Wesllen Imports';
+  if (pathname === '/times') title = 'Times / Clubes | Wesllen Imports';
+  if (pathname === '/produto') {
+    const product = catalog?.products.find(item => item.id === url.searchParams.get('id') && item.available);
+    if (product) {
+      title = `${product.name} | Wesllen Imports`;
+      description = String(product.description || `Confira ${product.name} na Wesllen Imports.`).slice(0, 160);
+      if (product.image) image = new URL(product.image, origin).href;
+    } else noindex = true;
+  }
+  if (pathname.startsWith('/times/')) {
+    const team = catalog?.categories.find(item => item.slug === pathname.slice(7) && item.is_active);
+    if (team) title = `Camisas do ${team.name} | Wesllen Imports`;
+    else noindex = true;
+  }
+  const canonical = `${origin}${url.pathname}${pathname === '/produto' && url.searchParams.has('id') ? `?id=${encodeURIComponent(url.searchParams.get('id'))}` : ''}`;
+  const tags = `<link rel="canonical" href="${escapeMarkup(canonical)}"><meta property="og:type" content="${pathname === '/produto' ? 'product' : 'website'}"><meta property="og:title" content="${escapeMarkup(title)}"><meta property="og:description" content="${escapeMarkup(description)}"><meta property="og:url" content="${escapeMarkup(canonical)}"><meta property="og:image" content="${escapeMarkup(image)}"><meta name="twitter:card" content="summary_large_image">${noindex ? '<meta name="robots" content="noindex,nofollow">' : ''}`;
+  return html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeMarkup(title)}</title>`)
+    .replace(/<meta name="description"[^>]*>/i, `<meta name="description" content="${escapeMarkup(description)}">`)
+    .replace('</head>', `  ${tags}\n</head>`);
+}
+async function serveFile(req, res, pathname) {
   const target = pathname === '/admin' || pathname === '/admin/login' ? '/admin.html' : pathname === '/catalogo' ? '/catalogo.html' : pathname === '/produto' ? '/produto.html' : pathname === '/carrinho' ? '/carrinho.html' : pathname === '/times' || /^\/times\/[^/]+$/.test(pathname) ? '/times.html' : pathname === '/' ? '/index.html' : pathname;
   let decoded;
   try { decoded = decodeURIComponent(target); } catch { return json(res, 400, { error: 'Caminho inválido.' }); }
   const resolved = path.resolve(publicDir, `.${decoded}`);
   if (!resolved.startsWith(publicDir + path.sep)) return json(res, 403, { error: 'Acesso negado.' });
+  let seoCatalog = null;
+  if (pathname === '/produto' || pathname.startsWith('/times/')) {
+    try { seoCatalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase); } catch { /* O cliente exibirá o erro do catálogo. */ }
+  }
   if (path.extname(resolved) === '.mp4') {
     return fs.stat(resolved, (error, stats) => {
       if (error || !stats.isFile()) return json(res, 404, { error: 'Página não encontrada.' });
@@ -220,6 +274,10 @@ function serveFile(req, res, pathname) {
   fs.readFile(resolved, (error, data) => {
     if (error) return json(res, 404, { error: 'Página não encontrada.' });
     if (target === '/sw.js') data = Buffer.from(data.toString('utf8').replace("wesllen-pwa-1'", `${releaseVersion}'`));
+    if (path.extname(resolved) === '.html' && target !== '/offline.html') {
+      try { data = Buffer.from(seoHtml(data.toString('utf8'), pathname, req, seoCatalog)); }
+      catch { return json(res, 400, { error: 'Metadados da página inválidos.' }); }
+    }
     const sensitive = target === '/admin.html' || target === '/sw.js' || target === '/manifest.webmanifest';
     res.writeHead(200, { 'Content-Type': `${mime[path.extname(resolved)] || 'application/octet-stream'}; charset=utf-8`, 'Content-Length': data.length, 'Cache-Control': sensitive ? 'no-store' : resolved.includes('uploads') ? 'public, max-age=3600' : 'no-cache', ...(target === '/sw.js' ? { 'Service-Worker-Allowed': '/' } : {}) });
     if (req.method === 'HEAD') res.end(); else res.end(data);
@@ -240,7 +298,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/api/catalog' && req.method === 'GET') {
       const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
-      return json(res, 200, { ...catalog, products: catalog.products.filter(product => product.available) });
+      return json(res, 200, { ...catalog, settings: publicSettings(catalog.settings), products: catalog.products.filter(product => product.available) });
     }
     if (pathname === '/api/shipping/quote' && req.method === 'POST') {
       const payload = await body(req, 100_000);
@@ -375,7 +433,21 @@ const server = http.createServer(async (req, res) => {
       await saveQuote(quote);
       return json(res, 200, { id: quote.id, message: quote.message, url: `https://wa.me/${phone}?text=${encodeURIComponent(quote.message)}` });
     }
-    if (req.method === 'GET' || req.method === 'HEAD') return serveFile(req, res, pathname);
+    if (pathname === '/robots.txt' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
+      return res.end(`User-agent: *\nDisallow: /admin\nDisallow: /carrinho\nSitemap: ${siteOrigin(req)}/sitemap.xml\n`);
+    }
+    if (pathname === '/sitemap.xml' && req.method === 'GET') {
+      const origin = siteOrigin(req);
+      const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
+      const paths = ['/', '/catalogo', '/times',
+        ...catalog.categories.filter(team => team.is_active).map(team => `/times/${encodeURIComponent(team.slug)}`),
+        ...catalog.products.filter(product => product.available).map(product => `/produto?id=${encodeURIComponent(product.id)}`)];
+      const sitemap = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.map(page => `<url><loc>${escapeMarkup(origin + page)}</loc></url>`).join('')}</urlset>`;
+      res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(sitemap);
+    }
+    if (req.method === 'GET' || req.method === 'HEAD') return await serveFile(req, res, pathname);
     return json(res, 404, { error: 'Recurso não encontrado.' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erro inesperado.';
