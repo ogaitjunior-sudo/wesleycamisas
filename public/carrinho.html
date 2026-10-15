@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#050505">
   <meta name="description" content="Revise seu carrinho e envie seu pedido à Wesllen Imports pelo WhatsApp.">
-  <title>Meu Carrinho | Wesllen Imports</title>
+  <title>Minha Sacola | Wesllen Imports</title>
   <link rel="icon" type="image/png" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -22,8 +22,8 @@
   <div class="site-frame">
     <div id="shop-header"></div>
     <main class="shop-main cart-main">
-      <nav class="shop-breadcrumb" aria-label="Caminho"><a href="/">Início</a><span>›</span><a href="/catalogo">Catálogo</a><span>›</span><span>Meu Carrinho</span></nav>
-      <div class="cart-page-heading"><p class="shop-eyebrow">WESLLEN IMPORTS</p><h1>MEU CARRINHO</h1><p>Revise seus produtos antes de enviar o pedido.</p></div>
+      <nav class="shop-breadcrumb" aria-label="Caminho"><a href="/">Início</a><span>›</span><a href="/catalogo">Catálogo</a><span>›</span><span>Minha Sacola</span></nav>
+      <div class="cart-page-heading"><p class="shop-eyebrow">WESLLEN IMPORTS</p><h1>MINHA SACOLA</h1><p>Revise seus produtos antes de enviar o pedido.</p></div>
       <div class="cart-page-layout">
         <section class="cart-page-products" aria-labelledby="cart-products-title">
           <div class="cart-panel-head"><h2 id="cart-products-title">SEUS PRODUTOS</h2><span id="cart-line-count">0 itens</span></div>
@@ -32,13 +32,13 @@
         </section>
         <aside class="cart-page-summary" aria-labelledby="cart-summary-title">
           <h2 id="cart-summary-title">RESUMO DO PEDIDO</h2>
-          <div class="cart-page-total"><span>TOTAL DOS PRODUTOS</span><strong id="cart-page-total">R$ 0,00</strong></div>
+          <div class="cart-page-total"><span>SUBTOTAL</span><strong id="cart-page-total">R$ 0,00</strong></div>
           <form id="cart-checkout-form">
             <label>Nome do cliente<input id="cart-customer-name" name="name" required maxlength="100" autocomplete="name" placeholder="Seu nome"></label>
             <label>Cidade<input id="cart-customer-city" name="city" required maxlength="100" autocomplete="address-level2" placeholder="Sua cidade"></label>
-            <div class="cart-shipping-section" id="cart-shipping-section" hidden>
+            <div class="cart-shipping-section" id="cart-shipping-section">
               <h3>ENTREGA E FRETE</h3>
-              <label>CEP de entrega<input id="cart-postal-code" name="postalCode" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000"></label>
+              <label>Digite seu CEP para calcular o frete<input id="cart-postal-code" name="postalCode" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000"></label>
               <button class="cart-shipping-calculate" id="cart-shipping-calculate" type="button">CALCULAR FRETE</button>
               <p class="cart-shipping-status" id="cart-shipping-status" role="status" aria-live="polite">Informe o CEP para ver as opções de entrega.</p>
               <div class="cart-shipping-options" id="cart-shipping-options" role="radiogroup" aria-label="Opções de frete"></div>
@@ -46,12 +46,12 @@
               <label>UF<input id="cart-customer-state" name="state" maxlength="2" autocomplete="address-level1" placeholder="Ex.: BA"></label>
             </div>
             <label>Observação opcional<textarea id="cart-customer-note" name="note" maxlength="500" rows="3" placeholder="Informações para combinar o pedido"></textarea></label>
-            <div class="cart-shipping-summary" id="cart-shipping-summary" hidden>
-              <div><span>FRETE</span><strong id="cart-shipping-price">—</strong></div>
-              <div class="cart-grand-total"><span>TOTAL DO PEDIDO</span><strong id="cart-grand-total">—</strong></div>
+            <div class="cart-shipping-summary" id="cart-shipping-summary">
+              <div><span>FRETE</span><strong id="cart-shipping-price">A combinar</strong></div>
+              <div class="cart-grand-total"><span>TOTAL DO PEDIDO</span><strong id="cart-grand-total">A confirmar após o frete</strong></div>
             </div>
             <p class="cart-submit-error" id="cart-submit-error" role="alert" hidden></p>
-            <button class="cart-whatsapp-button" id="cart-submit" type="submit">FINALIZAR PEDIDO NO WHATSAPP <span>↗</span></button>
+            <button class="cart-whatsapp-button" id="cart-submit" type="submit">FINALIZAR PEDIDO PELO WHATSAPP <span>↗</span></button>
           </form>
           <p class="cart-page-note">Pagamento e entrega são combinados diretamente pelo WhatsApp.</p>
         </aside>

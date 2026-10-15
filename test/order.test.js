@@ -12,17 +12,18 @@ const mug = (quantity = 1) => ({ productId:'caneca-preta', size:'', quantity, pe
 test('um produto personalizado usa o preço cadastrado e o adicional', () => {
   const quote = quoteFrom({customer:{name:'João Silva',city:'Ribeira do Pombal'},items:[shirt()]},catalog);
   assert.equal(quote.total,214.9);
-  assert.match(quote.message,/1x Camisa Barcelona 26\/27\nTamanho: G\nPersonalização: WESLEY 10\nValor: R\$ 214,90/);
-  assert.match(quote.message,/Total dos produtos: R\$ 214,90/);
+  assert.match(quote.message,/Produto: Camisa Barcelona 26\/27\nTamanho: G\nPersonalização: WESLEY 10\nQuantidade: 1\nPreço unitário: R\$ 214,90/);
+  assert.match(quote.message,/SUBTOTAL: R\$ 214,90/);
+  assert.match(quote.message,/Frete: a combinar/);
 });
 
 test('vários produtos incluem modelo, subtotais e caracteres especiais', () => {
   const note = 'Entrega após às 18h — prédio nº 2 😊';
   const quote = quoteFrom({customer:{name:'João Silva',city:'Ribeira do Pombal',note},items:[shirt(2),mug(1)]},catalog);
   assert.equal(quote.total,469.7);
-  assert.match(quote.message,/2x Camisa Barcelona 26\/27[\s\S]*Valor: R\$ 214,90\nSubtotal: R\$ 429,80/);
-  assert.match(quote.message,/1x Caneca Personalizada\nModelo: Preta\nValor: R\$ 39,90/);
-  assert.match(quote.message,/Total dos produtos: R\$ 469,70/);
+  assert.match(quote.message,/Produto: Camisa Barcelona 26\/27[\s\S]*Quantidade: 2\nPreço unitário: R\$ 214,90\nSubtotal do item: R\$ 429,80/);
+  assert.match(quote.message,/Produto: Caneca Personalizada\nModelo: Preta\nQuantidade: 1\nPreço unitário: R\$ 39,90/);
+  assert.match(quote.message,/SUBTOTAL: R\$ 469,70/);
   assert.ok(quote.message.includes(`Observação:\n${note}`));
   const url = `https://wa.me/${catalog.settings.whatsapp}?text=${encodeURIComponent(quote.message)}`;
   assert.equal(new URL(url).searchParams.get('text'),quote.message);

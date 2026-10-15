@@ -166,6 +166,11 @@ const publicSettingNames = [
 function publicSettings(settings) {
   return Object.fromEntries(publicSettingNames.filter(name => Object.hasOwn(settings, name)).map(name => [name, settings[name]]));
 }
+function shippingReady(catalog) {
+  return catalog.settings?.shippingEnabled === true && /^\d{8}$/.test(String(catalog.settings.shippingOriginCep || '')) &&
+    Boolean(process.env.MELHOR_ENVIO_TOKEN) && /\([^()\s]+@[^()\s]+\)/.test(String(process.env.MELHOR_ENVIO_USER_AGENT || '')) &&
+    !(production && process.env.MELHOR_ENVIO_SANDBOX === '1');
+}
 function body(req, max = 8_000_000) {
   return new Promise((resolve, reject) => {
     let size = 0, chunks = [];
@@ -314,12 +319,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/api/catalog' && req.method === 'GET') {
       const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
-      return json(res, 200, { ...catalog, settings: publicSettings(catalog.settings), products: catalog.products.filter(product => product.available) });
+      return json(res, 200, { ...catalog, settings: { ...publicSettings(catalog.settings), shippingEnabled: shippingReady(catalog) }, products: catalog.products.filter(product => product.available) });
     }
     if (pathname === '/api/shipping/quote' && req.method === 'POST') {
       const payload = await body(req, 100_000);
       const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
-      if (catalog.settings?.shippingEnabled !== true) return json(res, 409, { error: 'Frete automático ainda não está ativo.' });
+      if (!shippingReady(catalog)) return json(res, 503, { error: 'Cálculo automático indisponível. Combine o frete diretamente com a loja.' });
       const items = orderItemsFrom(payload.items, catalog);
       const quote = await calculateShipping({ postalCode: payload.postalCode, items, catalog, token: process.env.MELHOR_ENVIO_TOKEN, userAgent: process.env.MELHOR_ENVIO_USER_AGENT, sandbox: process.env.MELHOR_ENVIO_SANDBOX === '1' });
       return json(res, 200, quote);
@@ -371,7 +376,8 @@ const server = http.createServer(async (req, res) => {
       next.settings.shippingOriginCep=String(next.settings.shippingOriginCep||'').replace(/\D/g,'');
       if(next.settings.shippingOriginCep&&!/^\d{8}$/.test(next.settings.shippingOriginCep))return json(res,400,{error:'Informe um CEP de origem com 8 números.'});
       if(next.settings.shippingEnabled&&!next.settings.shippingOriginCep)return json(res,400,{error:'Configure o CEP de origem antes de ativar o frete.'});
-      if(next.settings.shippingEnabled&&(!process.env.MELHOR_ENVIO_TOKEN||!process.env.MELHOR_ENVIO_USER_AGENT))return json(res,409,{error:'Configure MELHOR_ENVIO_TOKEN e MELHOR_ENVIO_USER_AGENT no servidor antes de ativar o frete.'});
+      if(next.settings.shippingEnabled&&(!process.env.MELHOR_ENVIO_TOKEN||!/\([^()\s]+@[^()\s]+\)/.test(String(process.env.MELHOR_ENVIO_USER_AGENT||''))))return json(res,409,{error:'Configure MELHOR_ENVIO_TOKEN e MELHOR_ENVIO_USER_AGENT no servidor antes de ativar o frete.'});
+      if(next.settings.shippingEnabled&&production&&process.env.MELHOR_ENVIO_SANDBOX==='1')return json(res,409,{error:'Desative MELHOR_ENVIO_SANDBOX para usar cotações reais em produção.'});
       const teamIds=new Set(),teamSlugs=new Set();
       for(const team of next.categories){
         if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.id||''))||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.slug||''))||!String(team.name||'').trim()||teamIds.has(team.id)||teamSlugs.has(team.slug))return json(res,400,{error:'Time inválido, duplicado ou com slug repetido.'});
@@ -465,15 +471,17 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/quotes' && req.method === 'POST') {
       const payload = await body(req, 100_000);
       const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
+      const freightAvailable = shippingReady(catalog);
       let shipping = null;
-      if (catalog.settings?.shippingEnabled === true) {
+      if (freightAvailable) {
         const items = orderItemsFrom(payload.items, catalog);
         const fresh = await calculateShipping({ postalCode: payload.customer?.postalCode, items, catalog, token: process.env.MELHOR_ENVIO_TOKEN, userAgent: process.env.MELHOR_ENVIO_USER_AGENT, sandbox: process.env.MELHOR_ENVIO_SANDBOX === '1' });
         const selected = fresh.options.find(option => option.id === String(payload.shipping?.id || ''));
         if (!selected || selected.priceCents !== Number(payload.shipping?.priceCents) || selected.deliveryDays !== Number(payload.shipping?.deliveryDays)) return json(res, 409, { error: 'O frete mudou ou não está mais disponível. Calcule novamente antes de finalizar.' });
         shipping = { ...selected, postalCode: fresh.postalCode };
       }
-      const quote = quoteFrom(payload, catalog, shipping);
+      const orderCatalog = freightAvailable ? catalog : { ...catalog, settings: { ...catalog.settings, shippingEnabled: false } };
+      const quote = quoteFrom(payload, orderCatalog, shipping);
       const phone = String(catalog.settings.whatsapp || '').replace(/\D/g, '');
       if (!phone) return json(res, 422, { error: 'O WhatsApp da loja ainda não está configurado.' });
       await saveQuote(quote);

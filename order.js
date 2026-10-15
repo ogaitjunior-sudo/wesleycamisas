@@ -5,14 +5,15 @@ const singleLine = (value, limit) => String(value ?? '').replace(/\s+/g, ' ').tr
 const multiLine = (value, limit) => String(value ?? '').replace(/\r/g, '').trim().slice(0, limit);
 
 export function lineForItem(item) {
-  const lines = [`${item.quantity}x ${item.productName}`];
+  const lines = [`Produto: ${item.productName}`];
   if (item.size) lines.push(`Tamanho: ${item.size}`);
   if (item.model) lines.push(`Modelo: ${item.model}`);
   const custom = [item.personalization.name, item.personalization.number, item.personalization.phrase].filter(Boolean).join(' ');
   if (custom) lines.push(`Personalização: ${custom}`);
   if (item.personalization.note) lines.push(`Observação do produto: ${item.personalization.note}`);
-  lines.push(`Valor: ${money(item.unitPrice)}`);
-  if (item.quantity > 1) lines.push(`Subtotal: ${money(item.unitPrice * item.quantity)}`);
+  lines.push(`Quantidade: ${item.quantity}`);
+  lines.push(`Preço unitário: ${money(item.unitPrice)}`);
+  lines.push(`Subtotal do item: ${money(item.unitPrice * item.quantity)}`);
   return lines.join('\n');
 }
 
@@ -61,13 +62,14 @@ export function quoteFrom(payload, catalog, shipping = null) {
   const address = singleLine(customer.address, 240);
   const state = singleLine(customer.state, 2).toUpperCase();
   if (shippingEnabled && (!/^\d{8}$/.test(postalCode) || !address || !/^[A-Z]{2}$/.test(state))) throw new Error('Informe CEP, endereço e UF da entrega.');
+  if (!shippingEnabled && postalCode && !/^\d{8}$/.test(postalCode)) throw new Error('Informe um CEP com 8 números ou deixe o campo vazio.');
   if (shippingEnabled && (!shipping || shipping.postalCode !== postalCode || !Number.isInteger(shipping.priceCents) || shipping.priceCents < 0)) throw new Error('Calcule novamente o frete antes de finalizar.');
   const total = Math.round(productsTotal * 100 + (shippingEnabled ? shipping.priceCents : 0)) / 100;
   const storeName=singleLine(catalog.settings?.name,100)||'Wesllen Imports';
   const shippingLines = shippingEnabled
-    ? `\nFrete: ${shipping.company ? `${shipping.company} · ` : ''}${shipping.name}\nPrazo estimado: ${shipping.deliveryDays} dia(s) útil(eis)\nValor do frete: ${money(shipping.priceCents / 100)}\nTotal do pedido: ${money(total)}`
-    : '\nFrete: a combinar com a loja\nTotal final: a confirmar após definir o frete';
-  const deliveryLines = shippingEnabled ? `\nCEP: ${postalCode}\nEndereço: ${address}\nCidade/UF: ${city}/${state}` : `\nCidade: ${city}`;
-  const message = `Olá, Wesley! Quero fazer este pedido na ${storeName}:\n\n${items.map(lineForItem).join('\n\n')}\n\nTotal dos produtos: ${money(productsTotal)}${shippingLines}\n\nNome: ${name}${deliveryLines}${note ? `\n\nObservação:\n${note}` : ''}\n\nGostaria de combinar a forma de pagamento e a entrega.`;
-  return { id: crypto.randomUUID(), createdAt: new Date().toISOString(), customer: { name, city, note, ...(shippingEnabled ? { postalCode, address, state } : {}) }, items, productsTotal, shipping: shippingEnabled ? shipping : null, total, message };
+    ? `\nTransportadora: ${[shipping.company, shipping.name].filter(Boolean).join(' · ')}\nFrete: ${money(shipping.priceCents / 100)}\nPrazo estimado: ${shipping.deliveryDays} dia(s) útil(eis)\n*TOTAL DO PEDIDO: ${money(total)}*`
+    : '\nFrete: a combinar com a loja\n*TOTAL DO PEDIDO: a confirmar após definir o frete*';
+  const deliveryLines = `${postalCode ? `\nCEP de destino: ${postalCode.slice(0,5)}-${postalCode.slice(5)}` : ''}${address ? `\nEndereço: ${address}` : ''}\nCidade${state ? '/UF' : ''}: ${city}${state ? `/${state}` : ''}`;
+  const message = `*${storeName.toLocaleUpperCase('pt-BR')} — NOVO PEDIDO*\n\n${items.map(lineForItem).join('\n\n')}\n\nSUBTOTAL: ${money(productsTotal)}\n\nCliente: ${name}${deliveryLines}${shippingLines}${note ? `\n\nObservação:\n${note}` : ''}\n\nPagamento combinado diretamente com a loja pelo WhatsApp.`;
+  return { id: crypto.randomUUID(), createdAt: new Date().toISOString(), customer: { name, city, note, ...(postalCode ? { postalCode } : {}), ...(address ? { address } : {}), ...(state ? { state } : {}) }, items, productsTotal, shipping: shippingEnabled ? shipping : null, total, message };
 }

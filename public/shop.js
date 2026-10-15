@@ -14,6 +14,7 @@ let toastTimer;
 let shippingQuote = null;
 let selectedShipping = null;
 let shippingRequest = 0;
+let shippingDebounce;
 let submittingOrder = false;
 try {
   const stored = JSON.parse(localStorage.getItem('wesllen-cart') || '[]');
@@ -290,23 +291,24 @@ function renderCartPage() {
 
 function cartSignature() { return JSON.stringify(cart.map(item=>({productId:item.productId,size:item.size,personalization:item.personalization,quantity:item.quantity}))); }
 function invalidateShipping(message) {
+  clearTimeout(shippingDebounce);
   shippingRequest++;
   shippingQuote=null;selectedShipping=null;
-  if(page!=='carrinho'||catalog.settings?.shippingEnabled!==true)return;
+  if(page!=='carrinho')return;
   $('#cart-shipping-options').innerHTML='';
-  $('#cart-shipping-status').textContent=message;
+  $('#cart-shipping-status').textContent=catalog.settings?.shippingEnabled===true?message:'Cálculo automático indisponível. O frete será combinado diretamente com o vendedor pelo WhatsApp.';
   $('#cart-shipping-status').classList.remove('error');
-  $('#cart-shipping-calculate').disabled=false;
+  $('#cart-shipping-calculate').disabled=catalog.settings?.shippingEnabled!==true;
   $('#cart-shipping-calculate').textContent='CALCULAR FRETE';
   renderShippingTotal();
-  $('#cart-submit').disabled=true;
+  $('#cart-submit').disabled=!cart.length||catalog.settings?.shippingEnabled===true;
 }
 function renderShippingTotal(productsTotal) {
-  if(page!=='carrinho'||catalog.settings?.shippingEnabled!==true)return;
+  if(page!=='carrinho')return;
   const total=productsTotal??cart.reduce((sum,item)=>{const product=catalog.products.find(p=>p.id===item.productId);return product?sum+unitPrice(product,item.personalization)*item.quantity:sum;},0);
-  $('#cart-shipping-summary').hidden=!selectedShipping;
-  $('#cart-shipping-price').textContent=selectedShipping?money(selectedShipping.priceCents/100):'—';
-  $('#cart-grand-total').textContent=selectedShipping?money(Math.round(total*100+selectedShipping.priceCents)/100):'—';
+  $('#cart-shipping-summary').hidden=false;
+  $('#cart-shipping-price').textContent=selectedShipping?money(selectedShipping.priceCents/100):catalog.settings?.shippingEnabled===true?'Selecione o frete':'A combinar';
+  $('#cart-grand-total').textContent=selectedShipping?money(Math.round(total*100+selectedShipping.priceCents)/100):'A confirmar após o frete';
 }
 async function calculateCartShipping() {
   if(catalog.settings?.shippingEnabled!==true)return;
@@ -333,10 +335,10 @@ async function submitCart(event) {
   event.preventDefault();
   const error = $('#cart-submit-error'); error.hidden = true;
   if (!cart.length) { error.textContent = 'Adicione um produto ao carrinho.'; error.hidden = false; return; }
-  const customer = { name:$('#cart-customer-name').value.trim(), city:$('#cart-customer-city').value.trim(), note:$('#cart-customer-note').value.trim() };
+  const customer = { name:$('#cart-customer-name').value.trim(), city:$('#cart-customer-city').value.trim(), note:$('#cart-customer-note').value.trim(), postalCode:$('#cart-postal-code').value.replace(/\D/g,''), address:$('#cart-customer-address').value.trim(), state:$('#cart-customer-state').value.trim().toUpperCase() };
   if (!customer.name || !customer.city) { error.textContent = 'Informe seu nome e sua cidade.'; error.hidden = false; return; }
+  if(customer.postalCode&&!/^\d{8}$/.test(customer.postalCode)){error.textContent='Informe um CEP com 8 números ou deixe o campo vazio.';error.hidden=false;return;}
   if(catalog.settings?.shippingEnabled===true){
-    customer.postalCode=$('#cart-postal-code').value.replace(/\D/g,'');customer.address=$('#cart-customer-address').value.trim();customer.state=$('#cart-customer-state').value.trim().toUpperCase();
     if(!shippingQuote||!selectedShipping||shippingQuote.signature!==cartSignature()||shippingQuote.postalCode!==customer.postalCode){error.textContent='Calcule e escolha o frete antes de finalizar.';error.hidden=false;return;}
     if(!customer.address||!customer.city||!/^[A-Z]{2}$/.test(customer.state)){error.textContent='Informe endereço, cidade e UF da entrega.';error.hidden=false;return;}
   }
@@ -352,20 +354,33 @@ async function submitCart(event) {
     if (popup) popup.close();
     error.textContent = failure.message; error.hidden = false;
   } finally {
-    submittingOrder=false;button.disabled = !cart.length || (catalog.settings?.shippingEnabled===true&&!selectedShipping); button.innerHTML = 'FINALIZAR PEDIDO NO WHATSAPP <span>↗</span>';
+    submittingOrder=false;button.disabled = !cart.length || (catalog.settings?.shippingEnabled===true&&!selectedShipping); button.innerHTML = 'FINALIZAR PEDIDO PELO WHATSAPP <span>↗</span>';
   }
 }
 
 function initCartPage() {
   renderCartPage();
-  if(catalog.settings?.shippingEnabled===true){
-    $('#cart-shipping-section').hidden=false;
-    $('#cart-postal-code').required=true;$('#cart-customer-address').required=true;$('#cart-customer-state').required=true;
-    $('#cart-shipping-calculate').addEventListener('click',calculateCartShipping);
-    $('#cart-postal-code').addEventListener('input',()=>invalidateShipping('CEP alterado. Calcule o frete novamente.'));
-    $('#cart-shipping-options').addEventListener('change',event=>{const option=shippingQuote?.options.find(entry=>entry.id===event.target.value);selectedShipping=option||null;renderShippingTotal();$('#cart-submit').disabled=!selectedShipping;});
-  }
+  $('#cart-shipping-section').hidden=false;
+  $('#cart-postal-code').addEventListener('input',event=>{
+    const digits=event.target.value.replace(/\D/g,'').slice(0,8);
+    event.target.value=digits.length>5?`${digits.slice(0,5)}-${digits.slice(5)}`:digits;
+    if(catalog.settings?.shippingEnabled!==true)return;
+    invalidateShipping(digits.length===8?'Consultando opções de entrega...':'Digite os 8 números do CEP para calcular o frete.');
+    if(digits.length===8)shippingDebounce=setTimeout(calculateCartShipping,400);
+  });
+  $('#cart-shipping-calculate').addEventListener('click',calculateCartShipping);
+  $('#cart-shipping-options').addEventListener('change',event=>{const option=shippingQuote?.options.find(entry=>entry.id===event.target.value);selectedShipping=option||null;renderShippingTotal();$('#cart-submit').disabled=!selectedShipping;});
+  syncShippingControls();
   $('#cart-checkout-form').addEventListener('submit',submitCart);
+}
+function syncShippingControls(){
+  if(page!=='carrinho')return;
+  const enabled=catalog.settings?.shippingEnabled===true;
+  $('#cart-postal-code').required=enabled;
+  $('#cart-customer-address').required=enabled;
+  $('#cart-customer-state').required=enabled;
+  $('#cart-shipping-calculate').hidden=!enabled;
+  if(!enabled)$('#cart-shipping-status').textContent='Cálculo automático indisponível. O frete será combinado diretamente com o vendedor pelo WhatsApp.';
 }
 
 document.addEventListener('click', event => {
@@ -415,7 +430,7 @@ async function refreshCatalog() {
     catalog=next;updateContact();renderCart();
     if(page==='catalogo'){refreshCatalogFilters();renderCatalog();}
     else if(page==='times')initTeams();
-    else if(page==='carrinho'){invalidateShipping('O catálogo mudou. Calcule o frete novamente.');renderCartPage();}
+    else if(page==='carrinho'){syncShippingControls();invalidateShipping('O catálogo mudou. Calcule o frete novamente.');renderCartPage();}
     else if(!catalog.products.some(product=>product.id===params.get('id'))||!document.querySelector('.shop-custom-fields input:not(:placeholder-shown),.shop-custom-fields textarea:not(:placeholder-shown)'))renderProduct();
   } catch { /* A consulta seguinte tentará novamente. */ }
   finally {refreshInFlight=false;}
