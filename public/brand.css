@@ -15,11 +15,22 @@
   background: var(--bg);
 }
 
-html { background: var(--bg); }
+html { background: var(--bg); overflow-x: clip; }
 body {
   color: var(--text);
   background: #050505;
   overflow-x: clip;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-left: env(safe-area-inset-left);
+}
+
+.site-footer, .shop-footer { padding-bottom: max(22px, env(safe-area-inset-bottom)); }
+.whatsapp-float, .shop-whatsapp-float { right: calc(13px + env(safe-area-inset-right)); bottom: calc(14px + env(safe-area-inset-bottom)); }
+.toast, .shop-toast { bottom: calc(27px + env(safe-area-inset-bottom)); }
+.cart-drawer, .shop-cart { top: env(safe-area-inset-top); height: calc(100dvh - env(safe-area-inset-top)); }
+@media (max-width: 560px) {
+  .product-modal { top: env(safe-area-inset-top); height: calc(100dvh - env(safe-area-inset-top)); padding-bottom: env(safe-area-inset-bottom); }
 }
 button, input, textarea, select { font: inherit; }
 button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }

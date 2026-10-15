@@ -2,21 +2,27 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#050505">
   <meta name="description" content="Explore camisas de futebol, personalizados, canecas, bonés e presentes da Wesllen Imports.">
   <title>Catálogo | Wesllen Imports</title>
-  <link rel="icon" type="image/png" href="/assets/logo-wesllen-oficial.png">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wesllen">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/shop.css">
   <link rel="stylesheet" href="/brand.css">
+  <link rel="stylesheet" href="/pwa.css">
 </head>
 <body data-page="catalogo">
   <div class="site-frame">
     <div id="shop-header"></div>
     <main class="shop-main">
       <nav class="shop-breadcrumb" aria-label="Caminho"><a href="/">Início</a><span>›</span><span>Catálogo</span></nav>
-      <div class="shop-title-row"><div><p class="shop-eyebrow">WESLLEN IMPORTS</p><h1>CATÁLOGO DE PRODUTOS</h1><p>Encontre sua camisa, seu time e presentes feitos do seu jeito.</p></div><img class="shop-title-mark" src="/assets/logo-wesllen-oficial.png" alt=""></div>
+      <div class="shop-title-row"><div><p class="shop-eyebrow">WESLLEN IMPORTS</p><h1>CATÁLOGO DE PRODUTOS</h1><p>Encontre sua camisa, seu time e presentes feitos do seu jeito.</p></div><img class="shop-title-mark" src="/assets/logo-wesllen.webp" alt=""></div>
       <div class="catalog-layout">
         <aside class="catalog-filters" aria-label="Filtros de produtos">
           <div class="filter-head"><h2>FILTRAR PRODUTOS</h2><button type="button" id="clear-filters">Limpar</button></div>
@@ -38,5 +44,6 @@
   <aside id="shop-cart" class="shop-cart" role="dialog" aria-modal="true" aria-labelledby="shop-cart-title" hidden></aside>
   <div id="shop-toast" class="shop-toast" role="status" aria-live="polite"></div>
   <script type="module" src="/shop.js"></script>
+  <script defer src="/pwa.js"></script>
 </body>
 </html>

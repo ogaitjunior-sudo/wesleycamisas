@@ -2,23 +2,29 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#050505">
   <meta name="description" content="Camisas de futebol importadas, personalização com nome e número e presentes exclusivos da Wesllen Imports. Faça seu pedido pelo WhatsApp.">
   <title>Wesllen Imports | Paixão pelo Futebol</title>
-  <link rel="icon" type="image/png" href="/assets/logo-wesllen-oficial.png">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Wesllen">
   <link rel="preload" as="image" href="/assets/hero-wesllen-poster.jpg" fetchpriority="high">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/home.css">
   <link rel="stylesheet" href="/brand.css">
   <link rel="stylesheet" href="/hero-carousel.css">
+  <link rel="stylesheet" href="/pwa.css">
 </head>
 <body>
   <div class="site-frame">
     <header class="site-header" id="inicio">
       <button class="icon-button mobile-only" id="menu-toggle" aria-label="Abrir menu" aria-expanded="false"><span class="hamburger"></span></button>
       <a class="brand" href="#inicio" aria-label="Wesllen Imports, início">
-        <span class="brand-mark"><img src="/assets/logo-wesllen-oficial.png" alt="" class="brand-logo"></span>
+        <span class="brand-mark"><img src="/assets/logo-wesllen.webp" alt="" class="brand-logo"></span>
         <span class="brand-name">WESLLEN <strong>IMPORTS</strong></span>
       </a>
       <nav class="main-nav" id="main-nav" aria-label="Navegação principal">
@@ -85,7 +91,7 @@
       <section class="benefits" aria-label="Benefícios da loja"><div><span>♧</span>PRODUTOS<br>IMPORTADOS</div><div><span>◇</span>QUALIDADE<br>GARANTIDA</div><div><span>◉</span>ATENDIMENTO<br>VIA WHATSAPP</div><div><span>▣</span>PERSONALIZAÇÃO<br>COM NOME E NÚMERO</div><div><span>♔</span>PRESENTES<br>EXCLUSIVOS</div></section>
     </main>
 
-    <footer class="site-footer" id="contato"><div><a class="footer-identity" href="#inicio" aria-label="Wesllen Imports, voltar ao início"><span class="brand-mark footer-mark"><img src="/assets/logo-wesllen-oficial.png" alt="" class="brand-logo"></span><span class="footer-brand">WESLLEN <span>IMPORTS</span></span></a><p>Paixão pelo Futebol</p></div><nav aria-label="Rodapé"><a href="#camisas" data-all-products="true">Produtos</a><a href="#camisas" data-category="Camisas">Camisas</a><a href="#personalizados" data-category="Personalizados">Personalizados</a><a href="#categorias" data-category="Canecas">Canecas</a><a href="#categorias" data-category="Bonés">Bonés</a><a href="/catalogo?categoria=Promoções" data-promo="true">Promoções</a><a href="#contato">Contato</a></nav><div class="footer-links"><strong>ATENDIMENTO VIA WHATSAPP</strong><a id="footer-whatsapp" target="_blank" rel="noopener">WhatsApp</a><a id="footer-instagram" target="_blank" rel="noopener" hidden>Instagram</a><a href="/admin">Painel administrativo</a></div><small>© <span id="year"></span> Wesllen Imports. Pagamento e entrega combinados pelo WhatsApp.</small></footer>
+    <footer class="site-footer" id="contato"><div><a class="footer-identity" href="#inicio" aria-label="Wesllen Imports, voltar ao início"><span class="brand-mark footer-mark"><img src="/assets/logo-wesllen.webp" alt="" class="brand-logo"></span><span class="footer-brand">WESLLEN <span>IMPORTS</span></span></a><p>Paixão pelo Futebol</p></div><nav aria-label="Rodapé"><a href="#camisas" data-all-products="true">Produtos</a><a href="#camisas" data-category="Camisas">Camisas</a><a href="#personalizados" data-category="Personalizados">Personalizados</a><a href="#categorias" data-category="Canecas">Canecas</a><a href="#categorias" data-category="Bonés">Bonés</a><a href="/catalogo?categoria=Promoções" data-promo="true">Promoções</a><a href="#contato">Contato</a></nav><div class="footer-links"><strong>ATENDIMENTO VIA WHATSAPP</strong><a id="footer-whatsapp" target="_blank" rel="noopener">WhatsApp</a><a id="footer-instagram" target="_blank" rel="noopener" hidden>Instagram</a><a href="/admin">Painel administrativo</a></div><small>© <span id="year"></span> Wesllen Imports. Pagamento e entrega combinados pelo WhatsApp.</small></footer>
   </div>
 
   <button class="whatsapp-float" id="whatsapp-float" aria-label="Fale com a Wesllen Imports" title="Fale com a Wesllen Imports"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.4 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20.3l1.5-4.7a8.4 8.4 0 1 1 15.9-4.1Z"/><path d="M8.3 8.4c.6 3 2.7 5.2 5.7 6.1l1.8-1.2 1.7 1c-.2 1.4-1.3 2.2-2.8 2.1-3.6-.3-7.8-4.5-8.1-.1-1.5.7-2.6 2.1-2.8l1.1 1.7-1.2 1.8Z"/></svg><em>Fale com a Wesllen Imports</em></button>
@@ -95,5 +101,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script type="module" src="/app.js"></script>
   <script type="module" src="/hero-carousel.js"></script>
+  <script defer src="/pwa.js"></script>
 </body>
 </html>

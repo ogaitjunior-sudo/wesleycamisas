@@ -37,6 +37,21 @@ test('modo Vercel mantém sessão assinada e usa banco e Storage externos', asyn
   try {
     assert.equal((await fetch(base)).status, 200);
     assert.equal((await fetch(`${base}/app.js`)).status, 200);
+    const manifestResponse = await fetch(`${base}/manifest.webmanifest`);
+    assert.equal(manifestResponse.status, 200);
+    assert.match(manifestResponse.headers.get('content-type'), /^application\/manifest\+json/);
+    assert.equal(manifestResponse.headers.get('cache-control'), 'no-store');
+    const manifest = await manifestResponse.json();
+    assert.equal(manifest.display, 'standalone');
+    const workerResponse = await fetch(`${base}/sw.js`);
+    assert.equal(workerResponse.status, 200);
+    assert.equal(workerResponse.headers.get('cache-control'), 'no-store');
+    assert.match(await workerResponse.text(), /wesllen-pwa-[a-f0-9]{12}/);
+    for (const icon of manifest.icons) {
+      const response = await fetch(`${base}${icon.src}`);
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get('content-type'), /^image\/png/);
+    }
     assert.equal((await fetch(`${base}/api/catalog`)).status, 200);
     assert.equal((await fetch(`${base}/admin`, { redirect:'manual' })).status, 302);
     const login = await fetch(`${base}/api/admin/login`, { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({password}) });

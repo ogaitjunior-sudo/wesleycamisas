@@ -2,7 +2,7 @@ import { withDemoProducts } from './demo-products.js';
 const $ = selector => document.querySelector(selector);
 const money = value => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const brandLogo = '/assets/logo-wesllen-oficial.png';
+const brandLogo = '/assets/logo-wesllen.webp';
 const params = new URLSearchParams(location.search);
 const page = document.body.dataset.page;
 let catalog = { settings: {}, categories: [], products: [] };

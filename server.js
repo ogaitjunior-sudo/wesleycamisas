@@ -11,6 +11,14 @@ import { prepareTeamsCatalog } from './teams.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(root, 'public');
+const releaseHash = crypto.createHash('sha256');
+for (const name of fs.readdirSync(publicDir).filter(name => /\.(?:html|css|js|webmanifest)$/.test(name)).sort()) {
+  releaseHash.update(name).update(fs.readFileSync(path.join(publicDir, name)));
+}
+for (const name of fs.readdirSync(path.join(publicDir, 'icons')).sort()) {
+  releaseHash.update(name).update(fs.readFileSync(path.join(publicDir, 'icons', name)));
+}
+const releaseVersion = `wesllen-pwa-${releaseHash.digest('hex').slice(0, 12)}`;
 const dataDir = path.resolve(process.env.DATA_DIR || path.join(root, 'data'));
 const uploadDir = path.join(publicDir, 'uploads');
 const catalogFile = path.join(dataDir, 'catalog.json');
@@ -169,7 +177,7 @@ function sameOrigin(req) {
   if (!origin) return true;
   try { return new URL(origin).host === req.headers.host; } catch { return false; }
 }
-const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.mp4': 'video/mp4' };
+const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.mp4': 'video/mp4', '.webmanifest': 'application/manifest+json' };
 function serveFile(req, res, pathname) {
   const target = pathname === '/admin' || pathname === '/admin/login' ? '/admin.html' : pathname === '/catalogo' ? '/catalogo.html' : pathname === '/produto' ? '/produto.html' : pathname === '/carrinho' ? '/carrinho.html' : pathname === '/times' || /^\/times\/[^/]+$/.test(pathname) ? '/times.html' : pathname === '/' ? '/index.html' : pathname;
   let decoded;
@@ -211,7 +219,9 @@ function serveFile(req, res, pathname) {
   }
   fs.readFile(resolved, (error, data) => {
     if (error) return json(res, 404, { error: 'Página não encontrada.' });
-    res.writeHead(200, { 'Content-Type': `${mime[path.extname(resolved)] || 'application/octet-stream'}; charset=utf-8`, 'Cache-Control': resolved.includes('uploads') ? 'public, max-age=3600' : 'no-cache' });
+    if (target === '/sw.js') data = Buffer.from(data.toString('utf8').replace("wesllen-pwa-1'", `${releaseVersion}'`));
+    const sensitive = target === '/admin.html' || target === '/sw.js' || target === '/manifest.webmanifest';
+    res.writeHead(200, { 'Content-Type': `${mime[path.extname(resolved)] || 'application/octet-stream'}; charset=utf-8`, 'Content-Length': data.length, 'Cache-Control': sensitive ? 'no-store' : resolved.includes('uploads') ? 'public, max-age=3600' : 'no-cache', ...(target === '/sw.js' ? { 'Service-Worker-Allowed': '/' } : {}) });
     if (req.method === 'HEAD') res.end(); else res.end(data);
   });
 }

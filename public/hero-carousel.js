@@ -33,7 +33,7 @@ const slides = [
   },
   {
     type: 'image',
-    desktop: '/assets/hero-wesllen-1.png',
+    desktop: '/assets/hero-wesllen-1.webp',
     tablet: '',
     mobile: '',
     alt: 'Wesllen Imports: camisas de futebol, boné, caneca e presentes em preto e dourado',
@@ -44,7 +44,7 @@ const slides = [
   },
   {
     type: 'image',
-    desktop: '/assets/hero-wesllen-2.png',
+    desktop: '/assets/hero-wesllen-2.webp',
     tablet: '',
     mobile: '',
     alt: 'Vista sua paixão e personalize do seu jeito com nome e número',
@@ -59,7 +59,7 @@ const slides = [
   },
   {
     type: 'image',
-    desktop: '/assets/hero-wesllen-3.png',
+    desktop: '/assets/hero-wesllen-3.webp',
     tablet: '',
     mobile: '',
     alt: 'Wesllen Imports: camisas, personalizados, bonés e canecas',
