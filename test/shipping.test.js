@@ -43,7 +43,8 @@ test('o pedido soma o frete uma vez e registra entrega no WhatsApp e no painel',
   assert.equal(quote.total, 372.3);
   assert.equal(quote.shipping.priceCents, 2250);
   assert.equal(quote.customer.postalCode, '40000000');
-  assert.match(quote.message, /Transportadora: Correios · PAC/);
+  assert.match(quote.message, /Transportadora: Correios/);
+  assert.match(quote.message, /Modalidade: PAC/);
   assert.match(quote.message, /Frete: R\$ 22,50/);
   assert.match(quote.message, /Prazo estimado: 6 dia\(s\)/);
   assert.match(quote.message, /TOTAL DO PEDIDO: R\$ 372,30/);

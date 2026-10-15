@@ -59,7 +59,15 @@ export function quoteFrom(payload, catalog, shipping = null) {
   const productsTotal = Math.round(items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) * 100) / 100;
   const shippingEnabled = catalog.settings?.shippingEnabled === true;
   const postalCode = String(customer.postalCode || '').replace(/\D/g, '');
-  const address = singleLine(customer.address, 240);
+  const phone = String(customer.phone || '').replace(/\D/g, '');
+  const street = singleLine(customer.street, 150);
+  const number = singleLine(customer.number, 20);
+  const complement = singleLine(customer.complement, 100);
+  const district = singleLine(customer.district, 100);
+  if ((phone || street || number || district) && (!/^\d{10,13}$/.test(phone) || !street || !number || !district)) {
+    throw new Error('Informe WhatsApp, rua, número e bairro para a entrega.');
+  }
+  const address = street ? `${street}, ${number}${complement ? ` — ${complement}` : ''} — ${district}` : singleLine(customer.address, 240);
   const state = singleLine(customer.state, 2).toUpperCase();
   if (shippingEnabled && (!/^\d{8}$/.test(postalCode) || !address || !/^[A-Z]{2}$/.test(state))) throw new Error('Informe CEP, endereço e UF da entrega.');
   if (!shippingEnabled && postalCode && !/^\d{8}$/.test(postalCode)) throw new Error('Informe um CEP com 8 números ou deixe o campo vazio.');
@@ -67,9 +75,9 @@ export function quoteFrom(payload, catalog, shipping = null) {
   const total = Math.round(productsTotal * 100 + (shippingEnabled ? shipping.priceCents : 0)) / 100;
   const storeName=singleLine(catalog.settings?.name,100)||'Wesllen Imports';
   const shippingLines = shippingEnabled
-    ? `\nTransportadora: ${[shipping.company, shipping.name].filter(Boolean).join(' · ')}\nFrete: ${money(shipping.priceCents / 100)}\nPrazo estimado: ${shipping.deliveryDays} dia(s) útil(eis)\n*TOTAL DO PEDIDO: ${money(total)}*`
-    : '\nFrete: a combinar com a loja\n*TOTAL DO PEDIDO: a confirmar após definir o frete*';
-  const deliveryLines = `${postalCode ? `\nCEP de destino: ${postalCode.slice(0,5)}-${postalCode.slice(5)}` : ''}${address ? `\nEndereço: ${address}` : ''}\nCidade${state ? '/UF' : ''}: ${city}${state ? `/${state}` : ''}`;
-  const message = `*${storeName.toLocaleUpperCase('pt-BR')} — NOVO PEDIDO*\n\n${items.map(lineForItem).join('\n\n')}\n\nSUBTOTAL: ${money(productsTotal)}\n\nCliente: ${name}${deliveryLines}${shippingLines}${note ? `\n\nObservação:\n${note}` : ''}\n\nPagamento combinado diretamente com a loja pelo WhatsApp.`;
-  return { id: crypto.randomUUID(), createdAt: new Date().toISOString(), customer: { name, city, note, ...(postalCode ? { postalCode } : {}), ...(address ? { address } : {}), ...(state ? { state } : {}) }, items, productsTotal, shipping: shippingEnabled ? shipping : null, total, message };
+    ? `\nTransportadora: ${shipping.company || shipping.name}\nModalidade: ${shipping.name}\nPrazo estimado: ${shipping.deliveryDays} dia(s) útil(eis)\nFrete: ${money(shipping.priceCents / 100)}`
+    : '\nFrete: pendente de cotação com a loja';
+  const deliveryLines = `${phone ? `\nWhatsApp do cliente: ${phone}` : ''}${postalCode ? `\nCEP de destino: ${postalCode.slice(0,5)}-${postalCode.slice(5)}` : ''}${address ? `\nEndereço: ${address}` : ''}\nCidade${state ? '/UF' : ''}: ${city}${state ? `/${state}` : ''}`;
+  const message = `🛍️ *NOVO PEDIDO — ${storeName.toLocaleUpperCase('pt-BR')}*\n\nOlá! Gostaria de confirmar este pedido.\n\n${items.map((item,index)=>`👕 *PRODUTO ${index+1}*\n${lineForItem(item)}`).join('\n\n━━━━━━━━━━━━━━━━\n\n')}\n\n━━━━━━━━━━━━━━━━\n\n📦 *ENTREGA*\nCliente: ${name}${deliveryLines}${shippingLines}${note ? `\nObservação: ${note}` : ''}\n\n━━━━━━━━━━━━━━━━\n\n💰 *RESUMO*\nSUBTOTAL: ${money(productsTotal)}\nFrete: ${shippingEnabled?money(shipping.priceCents/100):'a combinar'}\n*${shippingEnabled?`TOTAL DO PEDIDO: ${money(total)}`:'TOTAL DO PEDIDO: a confirmar após definir o frete'}*\n\nGostaria de combinar a forma de pagamento pelo WhatsApp.`;
+  return { id: crypto.randomUUID(), createdAt: new Date().toISOString(), customer: { name, city, note, ...(phone ? { phone } : {}), ...(postalCode ? { postalCode } : {}), ...(address ? { address } : {}), ...(state ? { state } : {}) }, items, productsTotal, shipping: shippingEnabled ? shipping : null, total, message };
 }

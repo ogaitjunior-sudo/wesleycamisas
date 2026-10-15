@@ -14,7 +14,10 @@ let toastTimer;
 let shippingQuote = null;
 let selectedShipping = null;
 let shippingRequest = 0;
-let shippingDebounce;
+let shippingController;
+let addressDebounce;
+let addressRequest = 0;
+let shippingUnavailable = false;
 let submittingOrder = false;
 try {
   const stored = JSON.parse(localStorage.getItem('wesllen-cart') || '[]');
@@ -38,7 +41,7 @@ const cartCountFor = productId => cart.filter(item=>item.productId===productId).
 
 function chrome() {
   const nav = [['INÍCIO','/'],['CAMISAS','/catalogo?categoria=Camisas'],['PERSONALIZADOS','/catalogo?categoria=Personalizados'],['CANECAS','/catalogo?categoria=Canecas'],['BONÉS','/catalogo?categoria=Bon%C3%A9s'],['PROMOÇÕES','/catalogo?categoria=Promo%C3%A7%C3%B5es']];
-  $('#shop-header').innerHTML = `<header class="site-header shop-header"><button class="icon-button mobile-only" id="shop-menu-toggle" aria-label="Abrir menu" aria-expanded="false"><span class="hamburger"></span></button><a class="brand" href="/" aria-label="Wesllen Imports, início"><span class="brand-mark"><img src="${brandLogo}" alt="" class="brand-logo"></span><span class="brand-name">WESLLEN <strong>IMPORTS</strong></span></a><nav class="main-nav" id="shop-main-nav" aria-label="Navegação principal">${nav.map(([label,url])=>`<a href="${url}" ${page==='catalogo' && label==='CAMISAS' ? '' : ''}>${label}</a>`).join('')}</nav><div class="header-actions"><form class="search-box" id="shop-search-form"><label class="sr-only" for="shop-search">Buscar produtos</label><input id="shop-search" type="search" placeholder="Buscar produtos..." autocomplete="off"><button type="submit" aria-label="Buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m16 16 5 5"/></svg></button></form><button class="icon-button search-mobile mobile-only" id="shop-search-toggle" aria-label="Abrir busca"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m16 16 5 5"/></svg></button><a class="icon-button account-link" href="#contato" aria-label="Contato"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.5"/><path d="M4.5 21c0-4 3-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/></svg></a><button class="icon-button cart-trigger" id="shop-cart-open" aria-label="Abrir carrinho"><svg viewBox="0 0 24 24"><path d="M2 3h2l2 12h13l2-9H5"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg><span class="cart-count" id="shop-cart-count">0</span></button></div></header>`;
+  $('#shop-header').innerHTML = `<header class="site-header shop-header"><button class="icon-button mobile-only" id="shop-menu-toggle" aria-label="Abrir menu" aria-expanded="false"><span class="hamburger"></span></button><a class="brand" href="/" aria-label="Wesllen Imports, início"><span class="brand-mark"><img src="${brandLogo}" alt="" class="brand-logo"></span><span class="brand-name">WESLLEN <strong>IMPORTS</strong></span></a><nav class="main-nav" id="shop-main-nav" aria-label="Navegação principal">${nav.map(([label,url])=>`<a href="${url}" ${page==='catalogo' && label==='CAMISAS' ? '' : ''}>${label}</a>`).join('')}</nav><div class="header-actions"><form class="search-box" id="shop-search-form"><label class="sr-only" for="shop-search">Buscar produtos</label><input id="shop-search" type="search" placeholder="Buscar produtos..." autocomplete="off"><button type="submit" aria-label="Buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m16 16 5 5"/></svg></button></form><button class="icon-button search-mobile mobile-only" id="shop-search-toggle" aria-label="Abrir busca"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m16 16 5 5"/></svg></button><a class="icon-button account-link" href="#contato" aria-label="Contato"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.5"/><path d="M4.5 21c0-4 3-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/></svg></a><button class="icon-button cart-trigger" id="shop-cart-open" aria-label="Abrir sacola"><svg viewBox="0 0 24 24"><path d="M2 3h2l2 12h13l2-9H5"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg><span class="cart-count" id="shop-cart-count">0</span></button></div></header>`;
   $('#shop-footer').innerHTML = `<footer class="site-footer shop-footer" id="contato"><div><a class="shop-footer-brand" href="/"><span class="brand-mark"><img src="${brandLogo}" alt="" class="brand-logo"></span><span>WESLLEN <strong>IMPORTS</strong></span></a><p>Paixão pelo Futebol</p></div><nav aria-label="Rodapé"><a href="/catalogo">Produtos</a><a href="/catalogo?categoria=Camisas">Camisas</a><a href="/catalogo?categoria=Personalizados">Personalizados</a><a href="/catalogo?categoria=Canecas">Canecas</a><a href="/catalogo?categoria=Bon%C3%A9s">Bonés</a><a href="/catalogo?categoria=Presentes">Presentes</a><a href="/catalogo?categoria=Importados">Importados</a><a href="/catalogo?categoria=Promo%C3%A7%C3%B5es">Promoções</a></nav><div class="footer-links"><strong>ATENDIMENTO VIA WHATSAPP</strong><a id="shop-whatsapp" target="_blank" rel="noopener">WhatsApp</a><a id="shop-instagram" target="_blank" rel="noopener" hidden>Instagram</a></div><small>© ${new Date().getFullYear()} Wesllen Imports. Pagamento e entrega combinados pelo WhatsApp.</small></footer>`;
   document.body.insertAdjacentHTML('beforeend', '<a class="shop-whatsapp-float" id="shop-whatsapp-float" target="_blank" rel="noopener" aria-label="Fale com a Wesllen Imports" title="Fale com a Wesllen Imports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20.4 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20.3l1.5-4.7a8.4 8.4 0 1 1 15.9-4.1Z"/><path d="M8.3 8.4c.6 3 2.7 5.2 5.7 6.1l1.8-1.2 1.7 1c-.2 1.4-1.3 2.2-2.8 2.1-3.6-.3-7.8-4.5-8.1-8.1-.1-1.5.7-2.6 2.1-2.8l1.1 1.7-1.2 1.8Z"/></svg><em>Fale com a Wesllen Imports</em></a>');
   $('#shop-menu-toggle').addEventListener('click', () => { const open = $('#shop-main-nav').classList.toggle('open'); $('#shop-menu-toggle').setAttribute('aria-expanded', String(open)); });
@@ -116,6 +119,7 @@ function renderCatalog() {
   const team = $('#filter-team').value;
   const size = $('#filter-size').value;
   const range = $('#filter-price').value;
+  const sort = $('#filter-sort').value;
   const query = String(params.get('busca') || '').trim().toLocaleLowerCase('pt-BR');
   const shown = catalog.products.filter(product => {
     if (!product.available) return false;
@@ -125,6 +129,10 @@ function renderCatalog() {
     if (!priceMatches(product, range)) return false;
     return !query || `${product.name} ${product.description} ${product.category} ${teamName(product.team_id||product.team)}`.toLocaleLowerCase('pt-BR').includes(query);
   });
+  if(sort==='price-asc')shown.sort((a,b)=>activePrice(a)-activePrice(b));
+  else if(sort==='price-desc')shown.sort((a,b)=>activePrice(b)-activePrice(a));
+  else if(sort==='name-asc')shown.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  else if(sort==='name-desc')shown.sort((a,b)=>b.name.localeCompare(a.name,'pt-BR'));
   $('#catalog-results-title').textContent = category || (query ? 'RESULTADOS DA BUSCA' : 'TODOS OS PRODUTOS');
   $('#result-count').textContent = `${shown.length} produto${shown.length === 1 ? '' : 's'} encontrado${shown.length === 1 ? '' : 's'}`;
   $('#catalog-grid').innerHTML = shown.map(productCard).join('');
@@ -133,7 +141,7 @@ function renderCatalog() {
 }
 
 function clearFilters() {
-  ['#filter-category','#filter-team','#filter-size','#filter-price'].forEach(selector => { $(selector).value = ''; });
+  ['#filter-category','#filter-team','#filter-size','#filter-price','#filter-sort'].forEach(selector => { $(selector).value = ''; });
   params.delete('busca');
   history.replaceState(null, '', '/catalogo');
   $('#shop-search').value = '';
@@ -148,7 +156,7 @@ function initCatalog() {
   if ([...$('#filter-category').options].some(option => option.value === category)) $('#filter-category').value = category;
   if ([...$('#filter-team').options].some(option => option.value === team)) $('#filter-team').value = team;
   $('#shop-search').value = params.get('busca') || '';
-  ['#filter-category','#filter-team','#filter-size','#filter-price'].forEach(selector => $(selector).addEventListener('change', renderCatalog));
+  ['#filter-category','#filter-team','#filter-size','#filter-price','#filter-sort'].forEach(selector => $(selector).addEventListener('change', renderCatalog));
   $('#clear-filters').addEventListener('click', clearFilters);
   $('#empty-clear').addEventListener('click', clearFilters);
   renderCatalog();
@@ -201,7 +209,7 @@ function renderProduct() {
   $('#breadcrumb-product').textContent = product.name;
   const photos = [product.image, ...(product.photos || [])].filter(Boolean);
   const imageCount = Math.max(1, photos.length);
-  $('#product-page').innerHTML = `<article class="shop-product-layout"><section class="shop-gallery" aria-label="Galeria de imagens"><div id="shop-main-photo">${photo(product,'shop-large-photo')}</div><div class="shop-thumbnails">${Array.from({length:imageCount},(_,index)=>`<button class="shop-thumbnail ${index===0?'selected':''}" type="button" data-photo="${index}" aria-label="Ver foto ${index+1}" aria-pressed="${index===0}">${photo(product,'shop-thumbnail-photo',index)}</button>`).join('')}</div></section><section class="shop-product-info"><p class="shop-eyebrow">${escapeHtml(product.category)}${product.team ? ` · ${escapeHtml(teamName(product.team))}` : ''}</p>${badge(product) && (product.image || product.promoPrice) ? `<span class="shop-product-badge">${badge(product)}</span>` : ''}<h1>${escapeHtml(product.name)}</h1><div class="shop-detail-prices">${product.promoPrice ? `<s>${money(product.price)}</s>` : ''}<strong>${money(activePrice(product))}</strong></div><p class="shop-description">${escapeHtml(product.description)}</p><p class="shop-stock ${product.available ? 'in-stock' : 'out-of-stock'}"><span></span>${product.available ? 'Disponível' : 'Indisponível no momento'}</p>${product.sizes?.length ? `<div class="shop-sizes"><h2>Tamanho <small id="selected-size-label">Selecione</small></h2><div role="group" aria-label="Selecione o tamanho">${product.sizes.filter(size=>['P','M','G','GG','XG'].includes(size)).map(size=>`<button type="button" class="shop-size" data-size="${escapeHtml(size)}" aria-pressed="false">${escapeHtml(size)}</button>`).join('')}</div></div>` : ''}${customizationFields(product)}<div class="shop-quantity-row"><div><span>Quantidade</span><div class="shop-quantity"><button type="button" id="qty-minus" aria-label="Diminuir quantidade">−</button><output id="qty-value">1</output><button type="button" id="qty-plus" aria-label="Aumentar quantidade">+</button></div></div><div class="shop-item-total"><span>Total do item</span><strong id="item-total">${money(activePrice(product))}</strong></div></div><div id="price-breakdown" class="shop-price-breakdown"></div><p id="product-error" class="shop-error" role="alert" hidden></p><button type="button" class="btn btn-gold shop-add" id="add-to-cart" ${product.available ? '' : 'disabled'}>ADICIONAR AO CARRINHO <span>›</span></button><p class="shop-product-note">O produto será adicionado ao carrinho para revisar seu pedido.</p></section></article>`;
+  $('#product-page').innerHTML = `<article class="shop-product-layout"><section class="shop-gallery" aria-label="Galeria de imagens"><div id="shop-main-photo">${photo(product,'shop-large-photo')}</div><div class="shop-thumbnails">${Array.from({length:imageCount},(_,index)=>`<button class="shop-thumbnail ${index===0?'selected':''}" type="button" data-photo="${index}" aria-label="Ver foto ${index+1}" aria-pressed="${index===0}">${photo(product,'shop-thumbnail-photo',index)}</button>`).join('')}</div></section><section class="shop-product-info"><p class="shop-eyebrow">${escapeHtml(product.category)}${product.team ? ` · ${escapeHtml(teamName(product.team))}` : ''}</p>${badge(product) && (product.image || product.promoPrice) ? `<span class="shop-product-badge">${badge(product)}</span>` : ''}<h1>${escapeHtml(product.name)}</h1><div class="shop-detail-prices">${product.promoPrice ? `<s>${money(product.price)}</s>` : ''}<strong>${money(activePrice(product))}</strong></div><p class="shop-description">${escapeHtml(product.description)}</p><p class="shop-stock ${product.available ? 'in-stock' : 'out-of-stock'}"><span></span>${product.available ? 'Disponível' : 'Indisponível no momento'}</p>${product.sizes?.length ? `<div class="shop-sizes"><h2>Tamanho <small id="selected-size-label">Selecione</small></h2><div role="group" aria-label="Selecione o tamanho">${product.sizes.filter(size=>['P','M','G','GG','XG'].includes(size)).map(size=>`<button type="button" class="shop-size" data-size="${escapeHtml(size)}" aria-pressed="false">${escapeHtml(size)}</button>`).join('')}</div></div>` : ''}${customizationFields(product)}<div class="shop-quantity-row"><div><span>Quantidade</span><div class="shop-quantity"><button type="button" id="qty-minus" aria-label="Diminuir quantidade">−</button><output id="qty-value">1</output><button type="button" id="qty-plus" aria-label="Aumentar quantidade">+</button></div></div><div class="shop-item-total"><span>Total do item</span><strong id="item-total">${money(activePrice(product))}</strong></div></div><div id="price-breakdown" class="shop-price-breakdown"></div><p id="product-error" class="shop-error" role="alert" hidden></p><button type="button" class="btn btn-gold shop-add" id="add-to-cart" ${product.available ? '' : 'disabled'}>ADICIONAR À SACOLA <span>›</span></button><p class="shop-product-note">O produto será adicionado à sacola para revisar seu pedido.</p></section></article>`;
   if(!product.image)$('#product-page .shop-product-badge')?.remove();
   if (product.customizable && $('#custom-number')) $('#shop-main-photo').insertAdjacentHTML('afterend', '<p class="shirt-preview-note">Prévia ilustrativa: posição e cor da personalização podem variar na peça final.</p>');
   const stock=$('.shop-stock');stock.classList.toggle('in-stock',isPurchasable(product));stock.classList.toggle('out-of-stock',!isPurchasable(product));stock.innerHTML=`<span></span>${!isPurchasable(product)?'Indisponível no momento':product.fulfillment==='order'?'POR ENCOMENDA':product.stock!=null?`PRONTA ENTREGA · ${product.stock} disponíveis`:'Disponível'}`;
@@ -259,11 +267,24 @@ function addToCart() {
   openCart();
 }
 
-function saveCart() { localStorage.setItem('wesllen-cart', JSON.stringify(cart)); updateCartCount(); renderCart(); if (page === 'carrinho') { const recalculate=Boolean(shippingQuote); invalidateShipping('O carrinho mudou. Calcule o frete novamente.'); renderCartPage(); if(recalculate) calculateCartShipping(); } }
+function saveCart() { localStorage.setItem('wesllen-cart', JSON.stringify(cart)); updateCartCount(); renderCart(); if (page === 'carrinho') { invalidateShipping('A sacola mudou. Calcule o frete novamente.'); renderCartPage(); } }
 function updateCartCount() { $('#shop-cart-count').textContent = cart.reduce((sum,item) => sum + Number(item.quantity || 0), 0); }
 function toast(message) { const el = $('#shop-toast'); el.textContent = message; el.classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('visible'), 3000); }
+function syncCartAvailability() {
+  const before=JSON.stringify(cart),countByProduct=new Map();
+  cart=cart.flatMap(item=>{
+    const product=catalog.products.find(entry=>entry.id===item.productId);
+    if(!isPurchasable(product))return [];
+    const remaining=stockLimit(product)-(countByProduct.get(product.id)||0);
+    const quantity=Math.min(99,Number(item.quantity)||0,remaining);
+    if(!Number.isInteger(quantity)||quantity<1)return [];
+    countByProduct.set(product.id,(countByProduct.get(product.id)||0)+quantity);
+    return [{...item,quantity}];
+  });
+  if(JSON.stringify(cart)!==before)localStorage.setItem('wesllen-cart',JSON.stringify(cart));
+}
 function renderCart() {
-  const before=cart.length;cart = cart.filter(item => catalog.products.some(product => product.id === item.productId && isPurchasable(product)));if(cart.length!==before)localStorage.setItem('wesllen-cart',JSON.stringify(cart));
+  syncCartAvailability();
   const total = cart.reduce((sum,item) => { const product = catalog.products.find(p => p.id === item.productId); return sum + unitPrice(product,item.personalization) * item.quantity; }, 0);
   $('#shop-cart').innerHTML = `<div class="shop-cart-head"><h2 id="shop-cart-title">Meu Carrinho</h2><button type="button" id="shop-cart-close" aria-label="Fechar carrinho">×</button></div><div class="shop-cart-items">${cart.length ? cart.map((item,index) => { const product = catalog.products.find(p => p.id === item.productId); return `<div class="shop-cart-item">${photo(product,'shop-cart-photo')}<div><a href="${productUrl(product)}">${escapeHtml(product.name)}</a>${item.size ? `<small>Tamanho: ${escapeHtml(item.size)}</small>` : ''}${hasPersonalization(item.personalization) ? `<small>Personalização: ${escapeHtml([item.personalization.name,item.personalization.number,item.personalization.phrase].filter(Boolean).join(' '))}</small>` : ''}<strong>${money(unitPrice(product,item.personalization) * item.quantity)}</strong><div class="shop-cart-qty"><button type="button" data-cart-qty="-1" data-index="${index}" aria-label="Diminuir quantidade">−</button><span>${item.quantity}</span><button type="button" data-cart-qty="1" data-index="${index}" aria-label="Aumentar quantidade">+</button></div></div><button type="button" class="shop-remove" data-remove="${index}" aria-label="Remover ${escapeHtml(product.name)}">×</button></div>`; }).join('') : '<div class="shop-cart-empty">Seu carrinho está vazio.</div>'}</div><div class="shop-cart-bottom"><div><span>Total dos produtos</span><strong>${money(total)}</strong></div>${cart.length ? '<a class="btn btn-gold" href="/carrinho">VER CARRINHO <span>›</span></a>' : '<a class="btn btn-outline" href="/catalogo">VER PRODUTOS</a>'}</div>`;
   $('#shop-cart-close').addEventListener('click', closeCart);
@@ -273,80 +294,120 @@ function openCart() { renderCart(); $('#shop-overlay').hidden = false; $('#shop-
 function closeCart() { $('#shop-overlay').hidden = true; $('#shop-cart').hidden = true; document.body.style.overflow = ''; }
 
 function renderCartPage() {
+  syncCartAvailability();
   const available = catalog.products.filter(product => isPurchasable(product));
-  const before=cart.length;cart = cart.filter(item => available.some(product => product.id === item.productId));if(cart.length!==before)localStorage.setItem('wesllen-cart',JSON.stringify(cart));
   const count = cart.reduce((sum,item) => sum + item.quantity, 0);
   const total = cart.reduce((sum,item) => { const product = available.find(p => p.id === item.productId); return sum + unitPrice(product,item.personalization) * item.quantity; }, 0);
   $('#cart-line-count').textContent = `${count} ${count === 1 ? 'item' : 'itens'}`;
   $('#cart-page-total').textContent = money(total);
-  $('#cart-submit').disabled = cart.length === 0 || submittingOrder || (catalog.settings?.shippingEnabled === true && !selectedShipping);
+  $('#cart-checkout-form').classList.toggle('is-empty', !cart.length);
+  $('#cart-delivery-section').hidden = !cart.length;
+  $('#cart-page-sidebar').hidden = !cart.length;
+  $('#cart-continue').hidden = !cart.length;
   $('#cart-page-items').innerHTML = cart.length ? cart.map((item,index) => {
     const product = available.find(p => p.id === item.productId);
     const custom = [item.personalization?.name,item.personalization?.number,item.personalization?.phrase].filter(Boolean).join(' ');
-    return `<article class="cart-page-item"><a class="cart-page-image" href="${productUrl(product)}" aria-label="Ver ${escapeHtml(product.name)}">${photo(product,'cart-page-photo')}</a><div class="cart-page-details"><h3><a href="${productUrl(product)}">${escapeHtml(product.name)}</a></h3>${item.size ? `<p><strong>Tamanho:</strong> ${escapeHtml(item.size)}</p>` : ''}${product.model ? `<p><strong>Modelo:</strong> ${escapeHtml(product.model)}</p>` : ''}${custom ? `<p><strong>Personalização:</strong> ${escapeHtml(custom)}</p>` : ''}${item.personalization?.note ? `<p><strong>Observação do produto:</strong> ${escapeHtml(item.personalization.note)}</p>` : ''}<div class="cart-page-qty"><button type="button" data-page-qty="-1" data-index="${index}" aria-label="Diminuir quantidade de ${escapeHtml(product.name)}">−</button><span aria-label="Quantidade ${item.quantity}">${item.quantity}</span><button type="button" data-page-qty="1" data-index="${index}" aria-label="Aumentar quantidade de ${escapeHtml(product.name)}">+</button></div></div><div class="cart-page-prices"><div><span>Preço unitário</span><strong>${money(unitPrice(product,item.personalization))}</strong></div><div><span>Subtotal</span><strong>${money(unitPrice(product,item.personalization) * item.quantity)}</strong></div></div><button type="button" class="cart-page-remove" data-page-remove="${index}" aria-label="Remover ${escapeHtml(product.name)}">Remover</button></article>`;
-  }).join('') : '<div class="cart-page-empty"><h3>Seu carrinho está vazio</h3><p>Escolha seus produtos no catálogo para começar.</p></div>';
+    const category = [teamName(product.team), product.category].filter(Boolean).join(' · ');
+    return `<article class="cart-page-item"><a class="cart-page-image" href="${productUrl(product)}" aria-label="Ver ${escapeHtml(product.name)}">${photo(product,'cart-page-photo')}</a><div class="cart-page-details">${category ? `<p class="cart-page-category">${escapeHtml(category)}</p>` : ''}<h3><a href="${productUrl(product)}">${escapeHtml(product.name)}</a></h3><div class="cart-page-meta">${item.size ? `<span><strong>Tamanho:</strong> ${escapeHtml(item.size)}</span>` : ''}${product.model ? `<span><strong>Modelo:</strong> ${escapeHtml(product.model)}</span>` : ''}${custom ? `<span><strong>Personalização:</strong> ${escapeHtml(custom)}</span>` : ''}${item.personalization?.note ? `<span><strong>Observação:</strong> ${escapeHtml(item.personalization.note)}</span>` : ''}</div></div><div class="cart-page-controls"><div class="cart-page-qty"><button type="button" data-page-qty="-1" data-index="${index}" aria-label="Diminuir quantidade de ${escapeHtml(product.name)}">−</button><span aria-label="Quantidade ${item.quantity}">${item.quantity}</span><button type="button" data-page-qty="1" data-index="${index}" aria-label="Aumentar quantidade de ${escapeHtml(product.name)}">+</button></div><div class="cart-page-prices"><div><span>Unitário</span><strong>${money(unitPrice(product,item.personalization))}</strong></div><div><span>Subtotal</span><strong>${money(unitPrice(product,item.personalization) * item.quantity)}</strong></div></div><button type="button" class="cart-page-remove" data-page-remove="${index}" aria-label="Remover ${escapeHtml(product.name)}">Remover</button></div></article>`;
+  }).join('') : '<div class="cart-page-empty"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M9 18h30l-2 23H11L9 18Zm8 1v-8a7 7 0 0 1 14 0v8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/></svg><h3>Sua sacola está vazia</h3><p>Explore nossa coleção e encontre seus favoritos.</p><a class="cart-empty-link" href="/catalogo">EXPLORAR PRODUTOS</a></div>';
   updateCartCount();
   renderShippingTotal(total);
+  updateCheckoutButton();
 }
 
 function cartSignature() { return JSON.stringify(cart.map(item=>({productId:item.productId,size:item.size,personalization:item.personalization,quantity:item.quantity}))); }
+function updateCheckoutButton() {
+  if(page!=='carrinho')return;
+  const button=$('#cart-submit');
+  button.disabled=submittingOrder||!cart.length||(!shippingUnavailable&&!selectedShipping);
+  button.querySelector('span').textContent=shippingUnavailable?'CONSULTAR FRETE E FINALIZAR PELO WHATSAPP':'FINALIZAR PEDIDO PELO WHATSAPP';
+}
 function invalidateShipping(message) {
-  clearTimeout(shippingDebounce);
+  shippingController?.abort();
   shippingRequest++;
   shippingQuote=null;selectedShipping=null;
   if(page!=='carrinho')return;
+  shippingUnavailable=catalog.settings?.shippingEnabled!==true;
   $('#cart-shipping-options').innerHTML='';
-  $('#cart-shipping-status').textContent=catalog.settings?.shippingEnabled===true?message:'Cálculo automático indisponível. O frete será combinado diretamente com o vendedor pelo WhatsApp.';
+  $('#cart-shipping-status').textContent=shippingUnavailable?'Cálculo automático indisponível. Consulte a entrega pelo WhatsApp.':message;
   $('#cart-shipping-status').classList.remove('error');
   $('#cart-shipping-calculate').disabled=catalog.settings?.shippingEnabled!==true;
   $('#cart-shipping-calculate').textContent='CALCULAR FRETE';
   renderShippingTotal();
-  $('#cart-submit').disabled=!cart.length||catalog.settings?.shippingEnabled===true;
+  updateCheckoutButton();
 }
 function renderShippingTotal(productsTotal) {
   if(page!=='carrinho')return;
   const total=productsTotal??cart.reduce((sum,item)=>{const product=catalog.products.find(p=>p.id===item.productId);return product?sum+unitPrice(product,item.personalization)*item.quantity:sum;},0);
   $('#cart-shipping-summary').hidden=false;
-  $('#cart-shipping-price').textContent=selectedShipping?money(selectedShipping.priceCents/100):catalog.settings?.shippingEnabled===true?'Selecione o frete':'A combinar';
-  $('#cart-grand-total').textContent=selectedShipping?money(Math.round(total*100+selectedShipping.priceCents)/100):'A confirmar após o frete';
+  $('#cart-shipping-price').textContent=selectedShipping?money(selectedShipping.priceCents/100):shippingUnavailable?'A combinar':'Selecione o frete';
+  $('#cart-grand-total').textContent=selectedShipping?money(Math.round(total*100+selectedShipping.priceCents)/100):'Pendente';
 }
 async function calculateCartShipping() {
   if(catalog.settings?.shippingEnabled!==true)return;
+  const button=$('#cart-shipping-calculate');
+  if(button.disabled)return;
   const postalCode=$('#cart-postal-code').value.replace(/\D/g,'');
   invalidateShipping('Consultando opções de entrega...');
   const request=shippingRequest,signature=cartSignature();
-  const status=$('#cart-shipping-status'),button=$('#cart-shipping-calculate');
+  const status=$('#cart-shipping-status');
   if(!/^\d{8}$/.test(postalCode)){status.textContent='Informe um CEP válido com 8 números.';status.classList.add('error');return;}
   if(!cart.length){status.textContent='Adicione um produto antes de calcular o frete.';status.classList.add('error');return;}
   button.disabled=true;button.textContent='CALCULANDO...';
+  shippingController=new AbortController();
   try {
-    const response=await fetch('/api/shipping/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postalCode,items:cart})});
+    const response=await fetch('/api/shipping/quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({postalCode,items:cart}),signal:shippingController.signal});
     const result=await response.json();
     if(request!==shippingRequest||signature!==cartSignature()||postalCode!==$('#cart-postal-code').value.replace(/\D/g,''))return;
-    if(!response.ok)throw new Error(result.error||'Não foi possível calcular o frete.');
+    if(!response.ok)throw Object.assign(new Error(result.error||'Não foi possível calcular o frete.'),{status:response.status});
     shippingQuote={...result,signature};
     $('#cart-shipping-options').innerHTML=result.options.map(option=>`<label class="cart-shipping-option"><input type="radio" name="shipping-option" value="${escapeHtml(option.id)}"><span>${escapeHtml([option.company,option.name].filter(Boolean).join(' · '))}<small>Prazo estimado: ${Number(option.deliveryDays)} dia(s) útil(eis)</small></span><strong>${money(option.priceCents/100)}</strong></label>`).join('');
     status.textContent='Escolha uma opção de entrega para continuar.';
-  } catch(error) {if(request===shippingRequest){status.textContent=error.message;status.classList.add('error');}}
+  } catch(error) {if(request===shippingRequest&&error.name!=='AbortError'){shippingUnavailable=[409,503].includes(error.status);status.textContent=shippingUnavailable?'Não conseguimos calcular o frete agora. Consulte a entrega pelo WhatsApp.':error.message;status.classList.add('error');renderShippingTotal();updateCheckoutButton();}}
   finally {if(request===shippingRequest){button.disabled=false;button.textContent='CALCULAR FRETE';}}
+}
+async function lookupCartAddress(postalCode) {
+  const request=++addressRequest;
+  const status=$('#cart-address-status');
+  const selectors=[['street','#cart-customer-street'],['district','#cart-customer-district'],['city','#cart-customer-city'],['state','#cart-customer-state']];
+  const before=Object.fromEntries(selectors.map(([key,selector])=>[key,$(selector).value]));
+  status.textContent='Buscando endereço pelo CEP...';status.classList.remove('error');
+  try {
+    const response=await fetch(`/api/address/cep?cep=${postalCode}`,{cache:'no-store'});
+    const result=await response.json();
+    if(request!==addressRequest||postalCode!==$('#cart-postal-code').value.replace(/\D/g,''))return;
+    if(!response.ok)throw new Error(result.error||'Não foi possível buscar o endereço.');
+    for(const [key,selector] of selectors)if($(selector).value===before[key]&&result[key])$(selector).value=result[key];
+    status.textContent='Endereço encontrado. Confira os dados e informe o número.';
+  } catch(error) {
+    if(request!==addressRequest)return;
+    status.textContent=`${error.message} Você pode preencher o endereço manualmente.`;
+    status.classList.add('error');
+  }
 }
 
 async function submitCart(event) {
   event.preventDefault();
   const error = $('#cart-submit-error'); error.hidden = true;
   if (!cart.length) { error.textContent = 'Adicione um produto ao carrinho.'; error.hidden = false; return; }
-  const customer = { name:$('#cart-customer-name').value.trim(), city:$('#cart-customer-city').value.trim(), note:$('#cart-customer-note').value.trim(), postalCode:$('#cart-postal-code').value.replace(/\D/g,''), address:$('#cart-customer-address').value.trim(), state:$('#cart-customer-state').value.trim().toUpperCase() };
-  if (!customer.name || !customer.city) { error.textContent = 'Informe seu nome e sua cidade.'; error.hidden = false; return; }
-  if(customer.postalCode&&!/^\d{8}$/.test(customer.postalCode)){error.textContent='Informe um CEP com 8 números ou deixe o campo vazio.';error.hidden=false;return;}
-  if(catalog.settings?.shippingEnabled===true){
+  const customer = {
+    name:$('#cart-customer-name').value.trim(), phone:$('#cart-customer-phone').value.replace(/\D/g,''),
+    postalCode:$('#cart-postal-code').value.replace(/\D/g,''), street:$('#cart-customer-street').value.trim(),
+    number:$('#cart-customer-number').value.trim(), complement:$('#cart-customer-complement').value.trim(),
+    district:$('#cart-customer-district').value.trim(), city:$('#cart-customer-city').value.trim(),
+    state:$('#cart-customer-state').value.trim().toUpperCase(), note:$('#cart-customer-note').value.trim()
+  };
+  if(!customer.name||!/^\d{10,13}$/.test(customer.phone)||!/^\d{8}$/.test(customer.postalCode)||!customer.street||!customer.number||!customer.district||!customer.city||!/^[A-Z]{2}$/.test(customer.state)){
+    error.textContent='Preencha nome, WhatsApp, CEP e endereço completo antes de continuar.';error.hidden=false;return;
+  }
+  if(!shippingUnavailable){
     if(!shippingQuote||!selectedShipping||shippingQuote.signature!==cartSignature()||shippingQuote.postalCode!==customer.postalCode){error.textContent='Calcule e escolha o frete antes de finalizar.';error.hidden=false;return;}
-    if(!customer.address||!customer.city||!/^[A-Z]{2}$/.test(customer.state)){error.textContent='Informe endereço, cidade e UF da entrega.';error.hidden=false;return;}
   }
   const button = $('#cart-submit');
   const popup = window.open('about:blank','_blank');
-  submittingOrder=true;button.disabled = true; button.textContent = 'PREPARANDO PEDIDO...';
+  submittingOrder=true;button.disabled = true; button.querySelector('span').textContent = 'PREPARANDO PEDIDO...';
   try {
-    const response = await fetch('/api/quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer,items:cart,shipping:selectedShipping})});
+    const response = await fetch('/api/quotes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer,items:cart,shipping:selectedShipping,shippingMode:shippingUnavailable?'request_quote':'selected'})});
     const payload = await response.json();
     if (!response.ok) { if(response.status===409&&catalog.settings?.shippingEnabled===true)invalidateShipping('O frete mudou. Calcule novamente antes de finalizar.');throw new Error(payload.error || 'Não foi possível preparar o pedido.'); }
     if (popup) popup.location.href = payload.url; else location.href = payload.url;
@@ -354,7 +415,7 @@ async function submitCart(event) {
     if (popup) popup.close();
     error.textContent = failure.message; error.hidden = false;
   } finally {
-    submittingOrder=false;button.disabled = !cart.length || (catalog.settings?.shippingEnabled===true&&!selectedShipping); button.innerHTML = 'FINALIZAR PEDIDO PELO WHATSAPP <span>↗</span>';
+    submittingOrder=false;updateCheckoutButton();
   }
 }
 
@@ -364,23 +425,25 @@ function initCartPage() {
   $('#cart-postal-code').addEventListener('input',event=>{
     const digits=event.target.value.replace(/\D/g,'').slice(0,8);
     event.target.value=digits.length>5?`${digits.slice(0,5)}-${digits.slice(5)}`:digits;
-    if(catalog.settings?.shippingEnabled!==true)return;
-    invalidateShipping(digits.length===8?'Consultando opções de entrega...':'Digite os 8 números do CEP para calcular o frete.');
-    if(digits.length===8)shippingDebounce=setTimeout(calculateCartShipping,400);
+    clearTimeout(addressDebounce);addressRequest++;
+    $('#cart-address-status').textContent=digits.length===8?'Buscando endereço pelo CEP...':'Ao informar o CEP, buscamos o endereço. Você pode corrigir os campos.';
+    $('#cart-address-status').classList.remove('error');
+    invalidateShipping(digits.length===8?'CEP alterado. Clique em calcular frete.':'Informe os 8 números do CEP para calcular o frete.');
+    if(digits.length===8)addressDebounce=setTimeout(()=>lookupCartAddress(digits),450);
   });
   $('#cart-shipping-calculate').addEventListener('click',calculateCartShipping);
-  $('#cart-shipping-options').addEventListener('change',event=>{const option=shippingQuote?.options.find(entry=>entry.id===event.target.value);selectedShipping=option||null;renderShippingTotal();$('#cart-submit').disabled=!selectedShipping;});
+  $('#cart-shipping-options').addEventListener('change',event=>{const option=shippingQuote?.options.find(entry=>entry.id===event.target.value);selectedShipping=option||null;shippingUnavailable=false;renderShippingTotal();updateCheckoutButton();});
   syncShippingControls();
   $('#cart-checkout-form').addEventListener('submit',submitCart);
 }
 function syncShippingControls(){
   if(page!=='carrinho')return;
   const enabled=catalog.settings?.shippingEnabled===true;
-  $('#cart-postal-code').required=enabled;
-  $('#cart-customer-address').required=enabled;
-  $('#cart-customer-state').required=enabled;
   $('#cart-shipping-calculate').hidden=!enabled;
-  if(!enabled)$('#cart-shipping-status').textContent='Cálculo automático indisponível. O frete será combinado diretamente com o vendedor pelo WhatsApp.';
+  shippingUnavailable=!enabled;
+  if(!enabled)$('#cart-shipping-status').textContent='Cálculo automático indisponível. Consulte a entrega pelo WhatsApp.';
+  renderShippingTotal();
+  updateCheckoutButton();
 }
 
 document.addEventListener('click', event => {
@@ -392,11 +455,11 @@ document.addEventListener('click', event => {
   if (event.target.closest('#qty-plus')) { quantity = Math.min(99, stockLimit(currentProduct), quantity + 1); updateProductTotal(); return; }
   if (event.target.closest('#add-to-cart')) { addToCart(); return; }
   const cartQty = event.target.closest('[data-cart-qty]');
-  if (cartQty) { const index = Number(cartQty.dataset.index); if (cart[index]) { const delta=Number(cartQty.dataset.cartQty),product=catalog.products.find(p=>p.id===cart[index].productId);if(delta>0&&cartCountFor(product.id)>=stockLimit(product)){toast('Estoque disponível atingido.');return;}cart[index].quantity += delta; if (cart[index].quantity < 1) cart.splice(index,1); saveCart(); } return; }
+  if (cartQty) { const index = Number(cartQty.dataset.index); if (cart[index]) { const delta=Number(cartQty.dataset.cartQty),product=catalog.products.find(p=>p.id===cart[index].productId);if(delta<0&&cart[index].quantity===1)return;if(delta>0&&cartCountFor(product.id)>=stockLimit(product)){toast('Estoque disponível atingido.');return;}cart[index].quantity = Math.max(1,Math.min(99,cart[index].quantity+delta)); saveCart(); } return; }
   const remove = event.target.closest('[data-remove]');
   if (remove) { cart.splice(Number(remove.dataset.remove),1); saveCart(); return; }
   const pageQty = event.target.closest('[data-page-qty]');
-  if (pageQty) { const index = Number(pageQty.dataset.index); if (cart[index]) { const delta=Number(pageQty.dataset.pageQty),product=catalog.products.find(p=>p.id===cart[index].productId);if(delta>0&&cartCountFor(product.id)>=stockLimit(product)){toast('Estoque disponível atingido.');return;}cart[index].quantity = Math.max(0,Math.min(99,cart[index].quantity + delta)); if (cart[index].quantity === 0) cart.splice(index,1); saveCart(); } return; }
+  if (pageQty) { const index = Number(pageQty.dataset.index); if (cart[index]) { const delta=Number(pageQty.dataset.pageQty),product=catalog.products.find(p=>p.id===cart[index].productId);if(delta<0&&cart[index].quantity===1)return;if(delta>0&&cartCountFor(product.id)>=stockLimit(product)){toast('Estoque disponível atingido.');return;}cart[index].quantity = Math.max(1,Math.min(99,cart[index].quantity + delta)); saveCart(); } return; }
   const pageRemove = event.target.closest('[data-page-remove]');
   if (pageRemove) { cart.splice(Number(pageRemove.dataset.pageRemove),1); saveCart(); }
 });

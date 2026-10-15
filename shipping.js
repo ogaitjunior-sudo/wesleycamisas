@@ -59,6 +59,7 @@ export async function calculateShipping({ postalCode, items, catalog, token, use
   }
   if (response.status === 400 || response.status === 422) throw shippingError('CEP inexistente ou dados de envio inválidos. Confira o CEP e tente novamente.');
   if (response.status === 401 || response.status === 403) throw shippingError('O serviço de frete precisa ser configurado pela loja.', 503);
+  if (response.status === 429) throw shippingError('O serviço de frete está ocupado. Consulte a entrega pelo WhatsApp.', 503);
   if (!response.ok) throw shippingError('O serviço de frete está indisponível. Tente novamente em instantes.', 503);
   let result;
   try { result = await response.json(); } catch { throw shippingError('O serviço de frete retornou uma resposta inválida.', 503); }
@@ -72,6 +73,6 @@ export async function calculateShipping({ postalCode, items, catalog, token, use
     if (!id || !name || !Number.isFinite(price) || price < 0 || !Number.isInteger(days) || days < 0) return null;
     return { id, name, company, priceCents: Math.round(price * 100), deliveryDays: days };
   }).filter(Boolean);
-  if (!options.length) throw shippingError('Não há opções de entrega para este CEP e os produtos escolhidos.');
+  if (!options.length) throw shippingError('Não há opções de entrega para este CEP e os produtos escolhidos.', 409);
   return { postalCode: destination, options };
 }

@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { quoteFrom, orderItemsFrom } from './order.js';
 import { calculateShipping, shippingMeasurements } from './shipping.js';
+import { lookupPostalAddress } from './address.js';
 import { normalizedCatalog, publicationIssues } from './publication.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { prepareTeamsCatalog } from './teams.js';
@@ -171,6 +172,21 @@ function shippingReady(catalog) {
     Boolean(process.env.MELHOR_ENVIO_TOKEN) && /\([^()\s]+@[^()\s]+\)/.test(String(process.env.MELHOR_ENVIO_USER_AGENT || '')) &&
     !(production && process.env.MELHOR_ENVIO_SANDBOX === '1');
 }
+const publicRequestWindows = new Map();
+function publicRequestAllowed(req, route, limit) {
+  const forwarded = hosted ? String(req.headers['x-vercel-forwarded-for'] || req.headers['x-forwarded-for'] || '') : '';
+  const client = (forwarded.split(',')[0].trim() || req.socket.remoteAddress || 'unknown').slice(0, 80);
+  const key = `${route}:${client}`, now = Date.now();
+  if (publicRequestWindows.size > 1500) {
+    for (const [entry, window] of publicRequestWindows) if (window.reset <= now) publicRequestWindows.delete(entry);
+    while (publicRequestWindows.size > 1500) publicRequestWindows.delete(publicRequestWindows.keys().next().value);
+  }
+  const window = publicRequestWindows.get(key);
+  if (!window || window.reset <= now) { publicRequestWindows.set(key, { count: 1, reset: now + 60_000 }); return true; }
+  if (window.count >= limit) return false;
+  window.count++;
+  return true;
+}
 function body(req, max = 8_000_000) {
   return new Promise((resolve, reject) => {
     let size = 0, chunks = [];
@@ -321,7 +337,13 @@ const server = http.createServer(async (req, res) => {
       const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
       return json(res, 200, { ...catalog, settings: { ...publicSettings(catalog.settings), shippingEnabled: shippingReady(catalog) }, products: catalog.products.filter(product => product.available) });
     }
+    if (pathname === '/api/address/cep' && req.method === 'GET') {
+      if (!publicRequestAllowed(req, 'address', 40)) return json(res, 429, { error: 'Muitas consultas de CEP. Aguarde um minuto e tente novamente.' });
+      const postalCode = new URL(req.url, 'http://localhost').searchParams.get('cep');
+      return json(res, 200, await lookupPostalAddress(postalCode));
+    }
     if (pathname === '/api/shipping/quote' && req.method === 'POST') {
+      if (!publicRequestAllowed(req, 'shipping', 20)) return json(res, 429, { error: 'Muitas consultas de frete. Aguarde um minuto e tente novamente.' });
       const payload = await body(req, 100_000);
       const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
       if (!shippingReady(catalog)) return json(res, 503, { error: 'Cálculo automático indisponível. Combine o frete diretamente com a loja.' });
@@ -469,18 +491,30 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { url });
     }
     if (pathname === '/api/quotes' && req.method === 'POST') {
+      if (!publicRequestAllowed(req, 'quotes', 10)) return json(res, 429, { error: 'Muitas tentativas de pedido. Aguarde um minuto e tente novamente.' });
       const payload = await body(req, 100_000);
       const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
       const freightAvailable = shippingReady(catalog);
+      const requestManualQuote = payload.shippingMode === 'request_quote';
       let shipping = null;
+      let manualQuote = !freightAvailable;
       if (freightAvailable) {
         const items = orderItemsFrom(payload.items, catalog);
-        const fresh = await calculateShipping({ postalCode: payload.customer?.postalCode, items, catalog, token: process.env.MELHOR_ENVIO_TOKEN, userAgent: process.env.MELHOR_ENVIO_USER_AGENT, sandbox: process.env.MELHOR_ENVIO_SANDBOX === '1' });
-        const selected = fresh.options.find(option => option.id === String(payload.shipping?.id || ''));
-        if (!selected || selected.priceCents !== Number(payload.shipping?.priceCents) || selected.deliveryDays !== Number(payload.shipping?.deliveryDays)) return json(res, 409, { error: 'O frete mudou ou não está mais disponível. Calcule novamente antes de finalizar.' });
-        shipping = { ...selected, postalCode: fresh.postalCode };
+        let fresh;
+        try {
+          fresh = await calculateShipping({ postalCode: payload.customer?.postalCode, items, catalog, token: process.env.MELHOR_ENVIO_TOKEN, userAgent: process.env.MELHOR_ENVIO_USER_AGENT, sandbox: process.env.MELHOR_ENVIO_SANDBOX === '1' });
+        } catch (error) {
+          if (!requestManualQuote || ![409,503].includes(error.status)) throw error;
+          manualQuote = true;
+        }
+        if (fresh) {
+          if (requestManualQuote) return json(res, 409, { error: 'Há opções de frete disponíveis. Calcule e escolha uma modalidade antes de continuar.' });
+          const selected = fresh.options.find(option => option.id === String(payload.shipping?.id || ''));
+          if (!selected || selected.priceCents !== Number(payload.shipping?.priceCents) || selected.deliveryDays !== Number(payload.shipping?.deliveryDays)) return json(res, 409, { error: 'O frete mudou ou não está mais disponível. Calcule novamente antes de finalizar.' });
+          shipping = { ...selected, postalCode: fresh.postalCode };
+        }
       }
-      const orderCatalog = freightAvailable ? catalog : { ...catalog, settings: { ...catalog.settings, shippingEnabled: false } };
+      const orderCatalog = manualQuote ? { ...catalog, settings: { ...catalog.settings, shippingEnabled: false } } : catalog;
       const quote = quoteFrom(payload, orderCatalog, shipping);
       const phone = String(catalog.settings.whatsapp || '').replace(/\D/g, '');
       if (!phone) return json(res, 422, { error: 'O WhatsApp da loja ainda não está configurado.' });

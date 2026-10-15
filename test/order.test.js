@@ -24,7 +24,7 @@ test('vários produtos incluem modelo, subtotais e caracteres especiais', () => 
   assert.match(quote.message,/Produto: Camisa Barcelona 26\/27[\s\S]*Quantidade: 2\nPreço unitário: R\$ 214,90\nSubtotal do item: R\$ 429,80/);
   assert.match(quote.message,/Produto: Caneca Personalizada\nModelo: Preta\nQuantidade: 1\nPreço unitário: R\$ 39,90/);
   assert.match(quote.message,/SUBTOTAL: R\$ 469,70/);
-  assert.ok(quote.message.includes(`Observação:\n${note}`));
+  assert.ok(quote.message.includes(`Observação: ${note}`));
   const url = `https://wa.me/${catalog.settings.whatsapp}?text=${encodeURIComponent(quote.message)}`;
   assert.equal(new URL(url).searchParams.get('text'),quote.message);
 });
@@ -44,4 +44,14 @@ test('o orçamento respeita o estoque total e os campos de personalização do p
   assert.throws(()=>quoteFrom({customer,items:[shirt(2),{...shirt(1),size:'M'}]},current),/Estoque insuficiente/);
   assert.throws(()=>quoteFrom({customer,items:[{...shirt(),personalization:{phrase:'Frase extra'}}]},current),/não está disponível/);
   assert.equal(quoteFrom({customer,items:[shirt(2)]},current).total,429.8);
+});
+
+test('pedido com dados completos preserva contato e endereço no WhatsApp', () => {
+  const customer={name:'Ana Souza',phone:'(71) 99999-9999',postalCode:'40000-000',street:'Rua das Flores',number:'12',complement:'Casa 2',district:'Centro',city:'Salvador',state:'BA'};
+  const quote=quoteFrom({customer,items:[shirt()]},catalog);
+  assert.match(quote.message,/WhatsApp do cliente: 71999999999/);
+  assert.match(quote.message,/CEP de destino: 40000-000/);
+  assert.match(quote.message,/Endereço: Rua das Flores, 12 — Casa 2 — Centro/);
+  assert.match(quote.message,/TOTAL DO PEDIDO: a confirmar/);
+  assert.throws(()=>quoteFrom({customer:{...customer,number:''},items:[shirt()]},catalog),/rua, número e bairro/);
 });
