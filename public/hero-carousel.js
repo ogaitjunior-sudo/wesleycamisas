@@ -61,7 +61,7 @@ const slides = [
     href: '',
     hotspots: [
       { label: 'Ver camisas', href: '/catalogo?categoria=Camisas', x: 79, y: 622, width: 408, height: 99 },
-      { label: 'Personalizar agora', href: '/catalogo?categoria=Personalizados', x: 507, y: 622, width: 432, height: 99 }
+      { label: 'Personalizar agora', href: '/catalogo?categoria=Personalizados', x: 507, y: 622, width: 432, height: 99, personalize: true }
     ]
   },
   {
