@@ -102,7 +102,7 @@ function renderCatalog() {
   const query = String(params.get('busca') || '').trim().toLocaleLowerCase('pt-BR');
   const shown = catalog.products.filter(product => {
     if (!product.available) return false;
-    if (category === 'Promoções' ? !(product.promotion || (product.promoPrice && Number(product.promoPrice) < Number(product.price))) : category && product.category !== category) return false;
+    if (category === 'Promoções' ? !(product.promotion || (product.promoPrice && Number(product.promoPrice) < Number(product.price))) : category && product.category !== category && !(category === 'Camisas' && /^camisas?\b/i.test(product.category))) return false;
     if (team && (product.team_id||product.team) !== team) return false;
     if (size && !(product.sizes || []).includes(size)) return false;
     if (!priceMatches(product, range)) return false;

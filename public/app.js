@@ -22,7 +22,7 @@ function unitPrice(product, item) { return activePrice(product) + (product.custo
 function saveCart() { localStorage.setItem('wesllen-cart', JSON.stringify(cart)); renderCart(); }
 function toast(message) { const el=$('#toast'); el.textContent=message; el.classList.add('visible'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('visible'),3200); }
 function currentProducts() {
-  return catalog.products.filter(product => product.available && (!filter.category || product.category===filter.category) && (!filter.team || product.team===filter.team || (filter.team==='brasileirao' && ['flamengo','palmeiras','corinthians','bahia','vitoria'].includes(product.team))) && (!filter.promo || product.promotion || product.promoPrice) && (!filter.query || `${product.name} ${product.description} ${product.category} ${product.team}`.toLowerCase().includes(filter.query)));
+  return catalog.products.filter(product => product.available && (!filter.category || product.category===filter.category || filter.category==='Camisas' && /^camisas?\b/i.test(product.category)) && (!filter.team || product.team===filter.team || (filter.team==='brasileirao' && ['flamengo','palmeiras','corinthians','bahia','vitoria'].includes(product.team))) && (!filter.promo || product.promotion || product.promoPrice) && (!filter.query || `${product.name} ${product.description} ${product.category} ${catalog.categories.find(team=>team.id===(product.team_id||product.team))?.name||''}`.toLocaleLowerCase('pt-BR').includes(filter.query)));
 }
 function renderTeams() {
   const teams=homeTeams(catalog.categories);
