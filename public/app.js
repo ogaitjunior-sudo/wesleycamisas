@@ -76,6 +76,18 @@ function updateHeader() {
   try { const url=new URL(insta);instagramValid=url.protocol==='https:'&&['instagram.com','www.instagram.com'].includes(url.hostname)&&url.pathname.split('/').filter(Boolean).length>0; } catch {}
   instagramLink.hidden=!(settings.instagramEnabled && instagramValid);
   if(!instagramLink.hidden) instagramLink.href=insta;else instagramLink.removeAttribute('href');
+  for(const [key,hosts,label] of [['facebook',['facebook.com','www.facebook.com'],'Facebook'],['tiktok',['tiktok.com','www.tiktok.com'],'TikTok']]){
+    const value=String(settings[key]||'').trim();let valid=false;
+    try{const url=new URL(value);valid=url.protocol==='https:'&&hosts.includes(url.hostname)&&url.pathname.split('/').filter(Boolean).length>0;}catch{}
+    let link=footerLinks.querySelector(`[data-contact="${key}"]`);
+    if(!valid){link?.remove();continue;}
+    if(!link){link=document.createElement('a');link.dataset.contact=key;link.target='_blank';link.rel='noopener';footerLinks.append(link);}
+    link.href=value;link.textContent=label;
+  }
+  let emailLink=footerLinks.querySelector('[data-contact="email"]');
+  const email=String(settings.email||'').trim();
+  if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){if(!emailLink){emailLink=document.createElement('a');emailLink.dataset.contact='email';footerLinks.append(emailLink);}emailLink.href=`mailto:${email}`;emailLink.textContent=email;}
+  else emailLink?.remove();
   $('#year').textContent=new Date().getFullYear();
 }
 function setFilter(next) {

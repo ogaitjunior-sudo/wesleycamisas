@@ -83,7 +83,7 @@ const bannerTimeout = setTimeout(() => bannerRequest.abort(), 4000);
 try {
   const response = await fetch('/api/catalog', { cache: 'no-store', signal: bannerRequest.signal });
   if (response.ok) {
-    const { settings = {}, products = [] } = await response.json();
+    const { settings = {}, products = [], banners = [] } = await response.json();
     const availableHref = (href, fallback) => {
       if (!href?.startsWith('/produto?id=')) return href;
       const id = new URL(href, location.origin).searchParams.get('id');
@@ -106,6 +106,21 @@ try {
         ].filter(([label, href]) => label && href && (href.startsWith('/') || /^https?:\/\//i.test(href)))
       }
     });
+    const managedSlides = (Array.isArray(banners) ? banners : [])
+      .filter(banner => banner?.active && ['image', 'video'].includes(banner.type) && banner.src)
+      .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
+      .map(banner => ({
+        type: banner.type,
+        src: banner.type === 'video' ? banner.src : undefined,
+        desktop: banner.type === 'image' ? banner.src : undefined,
+        alt: banner.label || 'Destaque da Wesllen Imports',
+        label: banner.label || 'Destaque da loja',
+        href: availableHref(banner.href || '', '/catalogo'),
+        desktopPosition: 'center center',
+        tabletPosition: 'center center',
+        mobilePosition: 'center center'
+      }));
+    slides.splice(2, 0, ...managedSlides);
   }
 } catch { /* O carrossel padrão continua disponível durante uma falha de rede. */ }
 finally { clearTimeout(bannerTimeout); }

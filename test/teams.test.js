@@ -80,7 +80,7 @@ test('times do painel, produto relacionado e persistência local', async () => {
     assert.equal(login.status,200);
     let cookie=login.headers.get('set-cookie').split(';')[0];
     const admin=async()=> (await fetch(`${base}/api/admin/catalog`,{headers:{cookie}})).json();
-    const save=async document=>fetch(`${base}/api/admin/catalog`,{method:'PUT',headers:{cookie,'Content-Type':'application/json'},body:JSON.stringify(document)});
+    const save=async document=>{document.revision=(await admin()).revision;return fetch(`${base}/api/admin/catalog`,{method:'PUT',headers:{cookie,'Content-Type':'application/json'},body:JSON.stringify(document)});};
     const catalog=await admin();
     assert.equal(catalog.categories.filter(team=>team.category==='Brasil'&&team.id!=='brasileirao').length,20);
     assert.equal(catalog.categories.filter(team=>team.category==='Europa').length,23);

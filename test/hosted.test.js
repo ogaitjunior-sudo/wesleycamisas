@@ -96,6 +96,7 @@ test('modo Vercel preserva sessão, catálogo e configurações com Supabase sim
     assert.equal((await fetch(`${base}/api/admin/catalog`, {method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify(persisted)})).status, 200);
     assert.equal((await (await fetch(`${base}/api/catalog`)).json()).products.some(product => product.id === 'test-shirt'), false);
     persisted.products = persisted.products.filter(product => product.id !== 'test-bone');
+    persisted.revision = (await (await fetch(`${base}/api/admin/catalog`, {headers:{cookie}})).json()).revision;
     assert.equal((await fetch(`${base}/api/admin/catalog`, {method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify(persisted)})).status, 200);
     assert.equal((await (await fetch(`${base}/api/catalog`)).json()).products.length, 0);
     assert.equal((await (await fetch(`${base}/api/admin/catalog`, {headers:{cookie}})).json()).products.some(product => product.id === 'test-bone'), false);

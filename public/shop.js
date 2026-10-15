@@ -56,20 +56,32 @@ function updateContact() {
   const words=name.trim().split(/\s+/),last=words.pop(),first=escapeHtml(words.join(' '));document.querySelector('.shop-header .brand-name').innerHTML=`${first} <strong>${escapeHtml(last)}</strong>`;document.querySelector('.shop-footer-brand>span:last-child').innerHTML=`${first} <strong>${escapeHtml(last)}</strong>`;
   document.querySelector('.shop-footer>div>p').textContent=catalog.settings.slogan;
   const footerLinks=document.querySelector('.shop-footer .footer-links');
-  if(catalog.settings.address){let address=$('#shop-address');if(!address){address=document.createElement('span');address.id='shop-address';footerLinks.append(address);}address.textContent=catalog.settings.address;}
+  if(catalog.settings.address){let address=$('#shop-address');if(!address){address=document.createElement('span');address.id='shop-address';footerLinks.append(address);}address.textContent=catalog.settings.address;}else $('#shop-address')?.remove();
   document.querySelectorAll('.shop-footer-brand,.shop-header .brand').forEach(link=>link.setAttribute('aria-label',name));
   const whatsapp = $('#shop-whatsapp');
   if (phone) whatsapp.href = `https://wa.me/${phone}`;
   else { whatsapp.removeAttribute('href'); whatsapp.setAttribute('aria-disabled', 'true'); }
   const float = $('#shop-whatsapp-float');
+  float.hidden=!phone;
   if (phone) float.href = `https://wa.me/${phone}?text=${encodeURIComponent(catalog.settings.defaultMessage||'')}`;
-  else float.hidden = true;
   const instagram = String(catalog.settings.instagram || '').trim();
   const instagramLink=$('#shop-instagram');
   let instagramValid=false;
   try { const url=new URL(instagram);instagramValid=url.protocol==='https:'&&['instagram.com','www.instagram.com'].includes(url.hostname)&&url.pathname.split('/').filter(Boolean).length>0; } catch {}
   instagramLink.hidden=!(catalog.settings.instagramEnabled && instagramValid);
   if(!instagramLink.hidden)instagramLink.href=instagram;else instagramLink.removeAttribute('href');
+  for(const [key,hosts,label] of [['facebook',['facebook.com','www.facebook.com'],'Facebook'],['tiktok',['tiktok.com','www.tiktok.com'],'TikTok']]){
+    const value=String(catalog.settings[key]||'').trim();let valid=false;
+    try{const url=new URL(value);valid=url.protocol==='https:'&&hosts.includes(url.hostname)&&url.pathname.split('/').filter(Boolean).length>0;}catch{}
+    let link=footerLinks.querySelector(`[data-contact="${key}"]`);
+    if(!valid){link?.remove();continue;}
+    if(!link){link=document.createElement('a');link.dataset.contact=key;link.target='_blank';link.rel='noopener';footerLinks.append(link);}
+    link.href=value;link.textContent=label;
+  }
+  let emailLink=footerLinks.querySelector('[data-contact="email"]');
+  const email=String(catalog.settings.email||'').trim();
+  if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){if(!emailLink){emailLink=document.createElement('a');emailLink.dataset.contact='email';footerLinks.append(emailLink);}emailLink.href=`mailto:${email}`;emailLink.textContent=email;}
+  else emailLink?.remove();
 }
 
 function badge(product) {

@@ -68,7 +68,7 @@ test('produção protege o painel e mantém catálogo, upload, edição e pedido
     const expectedPhone=catalog.settings.whatsapp||'5511999999999';
     catalog.settings.whatsapp=expectedPhone;
     catalog.products[0].available=true;
-    const save=async()=>fetch(`${base}/api/admin/catalog`,{method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify(catalog)});
+    const save=async()=>{catalog.revision=(await (await fetch(`${base}/api/admin/catalog`,{headers:{cookie}})).json()).revision;return fetch(`${base}/api/admin/catalog`,{method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify(catalog)});};
     const incompleteSave=await save();
     assert.equal(incompleteSave.status,200);
     assert.equal((await incompleteSave.json()).unpublished.length,1);

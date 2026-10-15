@@ -50,7 +50,20 @@ export function createSupabaseStore({ url, secret, fetchImpl = fetch }) {
       const rows = await request('/rest/v1/wesllen_catalog?id=eq.1&select=document');
       return rows[0]?.document || null;
     },
-    async writeCatalog(document) {
+    async readCatalogSnapshot() {
+      const rows = await request('/rest/v1/wesllen_catalog?id=eq.1&select=document,updated_at');
+      return rows[0] ? { document: rows[0].document, revision: rows[0].updated_at } : null;
+    },
+    async writeCatalog(document, expectedRevision) {
+      if (expectedRevision) {
+        const filter = new URLSearchParams({ id: 'eq.1', updated_at: `eq.${expectedRevision}` });
+        const rows = await request(`/rest/v1/wesllen_catalog?${filter}`, {
+          method: 'PATCH', headers: { ...jsonHeaders, Prefer: 'return=representation' },
+          body: JSON.stringify({ document, updated_at: new Date(Math.max(Date.now(), Date.parse(expectedRevision) + 1)).toISOString() })
+        });
+        if (!rows.length) throw Object.assign(new Error('O catálogo foi alterado em outra sessão. Recarregue o painel antes de salvar.'), { status: 409 });
+        return;
+      }
       await request('/rest/v1/wesllen_catalog?on_conflict=id', {
         method: 'POST', headers: { ...jsonHeaders, Prefer: 'resolution=merge-duplicates,return=minimal' },
         body: JSON.stringify({ id: 1, document, updated_at: new Date().toISOString() })

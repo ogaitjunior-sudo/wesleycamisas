@@ -119,10 +119,26 @@ async function getCatalog() {
   if (hosted) throw Object.assign(new Error('Catálogo Supabase vazio. Importe o catálogo inicial antes de publicar.'), { status: 503 });
   return prepareTeamsCatalog(readJson(catalogFile, initialCatalog));
 }
-async function saveCatalog(catalog) {
+async function getCatalogSnapshot() {
+  if (supabase) {
+    const snapshot = await supabase.readCatalogSnapshot();
+    if (!snapshot && hosted) throw Object.assign(new Error('Catálogo Supabase vazio.'), { status: 503 });
+    if (snapshot) return { catalog: prepareTeamsCatalog(snapshot.document), revision: snapshot.revision };
+  }
+  const catalog = prepareTeamsCatalog(readJson(catalogFile, initialCatalog));
+  return { catalog, revision: crypto.createHash('sha256').update(JSON.stringify(catalog)).digest('hex') };
+}
+async function saveCatalog(catalog, expectedRevision) {
   const prepared = prepareTeamsCatalog(catalog);
-  if (supabase) await supabase.writeCatalog(prepared);
-  else writeJson(catalogFile, prepared);
+  if (supabase) await supabase.writeCatalog(prepared, expectedRevision);
+  else {
+    if (expectedRevision) {
+      const current = prepareTeamsCatalog(readJson(catalogFile, initialCatalog));
+      const revision = crypto.createHash('sha256').update(JSON.stringify(current)).digest('hex');
+      if (revision !== expectedRevision) throw Object.assign(new Error('O catálogo foi alterado em outra sessão. Recarregue o painel antes de salvar.'), { status: 409 });
+    }
+    writeJson(catalogFile, prepared);
+  }
 }
 async function getQuotes() {
   return supabase ? supabase.readQuotes() : readJson(quotesFile, []);
@@ -141,7 +157,7 @@ function json(res, status, value, headers = {}) {
   res.end(JSON.stringify(value));
 }
 const publicSettingNames = [
-  'name', 'slogan', 'whatsapp', 'instagram', 'instagramEnabled', 'shippingEnabled',
+  'name', 'slogan', 'whatsapp', 'instagram', 'instagramEnabled', 'facebook', 'tiktok', 'email', 'shippingEnabled',
   'announcement', 'address', 'defaultMessage', 'defaultPersonalizationPrice',
   'demoShowcaseEnabled', 'demoHiddenIds', 'heroEyebrow', 'heroTitle', 'heroSubtitle',
   'heroDescription', 'heroPrimaryLabel', 'heroPrimaryLink', 'heroSecondaryLabel',
@@ -325,16 +341,31 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/api/admin/logout' && req.method === 'POST') { sessions.delete(cookie(req)); return json(res, 200, { ok: true }, { 'Set-Cookie': 'wesllen_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0' }); }
     if (pathname.startsWith('/api/admin/') && !isAdmin(req)) return json(res, 401, { error: 'Entre no painel para continuar.' });
-    if (pathname === '/api/admin/catalog' && req.method === 'GET') return json(res, 200, normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase));
+    if (pathname === '/api/admin/catalog' && req.method === 'GET') {
+      const snapshot = await getCatalogSnapshot();
+      return json(res, 200, { ...normalizedCatalog(snapshot.catalog, uploadDir, publicPhotoBase), revision: snapshot.revision });
+    }
     if (pathname === '/api/admin/catalog' && req.method === 'PUT') {
       const next = prepareTeamsCatalog(await body(req));
       if (!next || !Array.isArray(next.products) || !Array.isArray(next.categories) || !Array.isArray(next.productCategories) || !next.settings || typeof next.settings !== 'object') return json(res, 400, { error: 'Catálogo inválido.' });
+      const snapshot = await getCatalogSnapshot();
+      if (next.revision !== snapshot.revision) return json(res, 409, { error: 'O catálogo foi alterado em outra sessão. Recarregue o painel antes de salvar.' });
+      delete next.revision;
       const instagram=String(next.settings.instagram||'').trim();
       if (instagram) {
         let valid=false;
         try { const url=new URL(instagram);valid=url.protocol==='https:'&&['instagram.com','www.instagram.com'].includes(url.hostname)&&url.pathname.split('/').filter(Boolean).length>0; } catch {}
         if(!valid)return json(res,400,{error:'Informe uma URL válida do Instagram (https://www.instagram.com/perfil/).'});
       }
+      for (const [name, hosts] of [['facebook', ['facebook.com', 'www.facebook.com']], ['tiktok', ['tiktok.com', 'www.tiktok.com']]]) {
+        const value = String(next.settings[name] || '').trim();
+        if (!value) continue;
+        let valid = false;
+        try { const url = new URL(value); valid = url.protocol === 'https:' && hosts.includes(url.hostname) && url.pathname.split('/').filter(Boolean).length > 0; } catch {}
+        if (!valid) return json(res, 400, { error: `Informe uma URL válida do ${name}.` });
+      }
+      const email = String(next.settings.email || '').trim();
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(res, 400, { error: 'Informe um e-mail de contato válido.' });
       next.settings.instagramEnabled=next.settings.instagramEnabled===true;
       next.settings.shippingEnabled=next.settings.shippingEnabled===true;
       next.settings.shippingOriginCep=String(next.settings.shippingOriginCep||'').replace(/\D/g,'');
@@ -363,6 +394,21 @@ const server = http.createServer(async (req, res) => {
         if (chosenHomeTeams.some(team => !previousChosen.has(team.id))) return json(res, 400, { error: 'A Home aceita no máximo 10 times em destaque.' });
       }
       const ids=new Set();
+      if (!Array.isArray(next.banners)) return json(res, 400, { error: 'Lista de banners inválida.' });
+      const bannerIds = new Set();
+      for (const banner of next.banners) {
+        if (!banner || !/^[a-z0-9-]+$/i.test(String(banner.id || '')) || bannerIds.has(banner.id) ||
+            !['image', 'video'].includes(banner.type) || !Number.isInteger(Number(banner.sort_order)) || Number(banner.sort_order) < 0 ||
+            typeof banner.active !== 'boolean') return json(res, 400, { error: 'Banner inválido ou duplicado.' });
+        const source = String(banner.src || '');
+        const localImage = /^\/uploads\/([a-f0-9-]+\.(?:png|jpg|webp))$/i.exec(source);
+        const image = /^https:\/\//i.test(source) || Boolean(localImage && fs.existsSync(path.join(uploadDir, localImage[1])));
+        const video = /^https:\/\//i.test(source) && /\.mp4(?:[?#]|$)/i.test(source);
+        if (!(banner.type === 'image' ? image : video)) return json(res, 400, { error: 'Use uma imagem enviada pelo painel ou uma URL HTTPS de vídeo MP4.' });
+        const link = String(banner.href || '');
+        if (link && !(link.startsWith('/') && !link.startsWith('//')) && !/^https:\/\//i.test(link)) return json(res, 400, { error: 'Link do banner inválido.' });
+        bannerIds.add(banner.id);
+      }
       for(const product of next.products){
         if(!product.id||ids.has(product.id)||!Number.isFinite(Number(product.price))||Number(product.price)<0) return json(res,400,{error:'Produto inválido ou duplicado.'});
         if(product.status!=null&&!['published','draft','inactive'].includes(product.status))return json(res,400,{error:'Status de produto inválido.'});
@@ -385,7 +431,7 @@ const server = http.createServer(async (req, res) => {
       }
       const unpublished = next.products.filter(product => product.available && publicationIssues(product, next, uploadDir, publicPhotoBase).length)
         .map(product => ({ id: product.id, missing: publicationIssues(product, next, uploadDir, publicPhotoBase) }));
-      await saveCatalog(normalizedCatalog(next, uploadDir, publicPhotoBase));
+      await saveCatalog(normalizedCatalog(next, uploadDir, publicPhotoBase), snapshot.revision);
       return json(res, 200, { ok: true, unpublished });
     }
     if (pathname === '/api/admin/quotes' && req.method === 'GET') return json(res, 200, await getQuotes());
