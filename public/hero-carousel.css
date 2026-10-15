@@ -43,6 +43,9 @@
   object-fit: cover;
   object-position: var(--desktop-position, center center);
 }
+.hero-carousel-slide video {
+  background: #080808 url('/assets/hero-wesllen-poster.jpg') center / cover no-repeat;
+}
 .hero-carousel-custom-backdrop {
   width: 100%;
   height: 100%;
@@ -162,6 +165,26 @@
   transition: background 180ms ease, border-color 180ms ease;
 }
 
+.hero-carousel-pause {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #605021;
+  border-radius: 50%;
+  background: #171717;
+  color: #ffc400;
+  font: 700 16px/1 Arial, sans-serif;
+  cursor: pointer;
+}
+
+.hero-carousel-pause:hover,
+.hero-carousel-pause:focus-visible {
+  background: #292109;
+  border-color: #ffc400;
+  outline: 2px solid #ffc400;
+  outline-offset: 2px;
+}
+
 .hero-carousel-arrow:hover,
 .hero-carousel-arrow:focus-visible {
   background: #292109;
@@ -175,11 +198,15 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
+  max-width: min(70vw, 640px);
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .hero-carousel-dot {
   display: grid;
   place-items: center;
+  flex: 0 0 30px;
   width: 30px;
   height: 38px;
   padding: 0;
@@ -265,6 +292,8 @@
   .hero-carousel-slide video { object-position: var(--mobile-position, left center); }
   .hero-carousel-controls { min-height: 50px; gap: 10px; }
   .hero-carousel-arrow { width: 42px; height: 42px; }
+  .hero-carousel-pause { flex-basis: 42px; width: 42px; height: 42px; }
+  .hero-carousel-dots { max-width: calc(100vw - 180px); }
   .hero-carousel-dot { width: 30px; height: 42px; }
   .hero-carousel-responsive-actions:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hero-carousel-responsive-actions a:first-child { grid-column: 1 / -1; }
@@ -276,5 +305,6 @@
 @media (prefers-reduced-motion: reduce) {
   .hero-carousel-slide,
   .hero-carousel-arrow,
+  .hero-carousel-pause,
   .hero-carousel-dot::before { transition-duration: 0ms; }
 }

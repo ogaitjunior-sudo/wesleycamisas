@@ -77,54 +77,6 @@ const slides = [
   }
 ];
 
-// O banner salvo no painel é lido junto com o catálogo, sem precisar de novo deploy.
-const bannerRequest = new AbortController();
-const bannerTimeout = setTimeout(() => bannerRequest.abort(), 4000);
-try {
-  const response = await fetch('/api/catalog', { cache: 'no-store', signal: bannerRequest.signal });
-  if (response.ok) {
-    const { settings = {}, products = [], banners = [] } = await response.json();
-    const availableHref = (href, fallback) => {
-      if (!href?.startsWith('/produto?id=')) return href;
-      const id = new URL(href, location.origin).searchParams.get('id');
-      return products.some(product => product.id === id && product.available) ? href : fallback;
-    };
-    slides.splice(1, 0, {
-      type: settings.heroImage ? 'image' : 'custom',
-      desktop: settings.heroImage || '',
-      alt: settings.heroTitle || 'Destaques da Wesllen Imports',
-      label: settings.heroTitle || 'Destaques da loja',
-      desktopPosition: 'center center',
-      caption: {
-        eyebrow: settings.heroEyebrow || '',
-        title: settings.heroTitle || '',
-        subtitle: settings.heroSubtitle || '',
-        description: settings.heroDescription || '',
-        actions: [
-          [settings.heroPrimaryLabel, availableHref(settings.heroPrimaryLink, '/catalogo')],
-          [settings.heroSecondaryLabel, availableHref(settings.heroSecondaryLink, '/catalogo?categoria=Personalizados')]
-        ].filter(([label, href]) => label && href && (href.startsWith('/') || /^https?:\/\//i.test(href)))
-      }
-    });
-    const managedSlides = (Array.isArray(banners) ? banners : [])
-      .filter(banner => banner?.active && ['image', 'video'].includes(banner.type) && banner.src)
-      .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
-      .map(banner => ({
-        type: banner.type,
-        src: banner.type === 'video' ? banner.src : undefined,
-        desktop: banner.type === 'image' ? banner.src : undefined,
-        alt: banner.label || 'Destaque da Wesllen Imports',
-        label: banner.label || 'Destaque da loja',
-        href: availableHref(banner.href || '', '/catalogo'),
-        desktopPosition: 'center center',
-        tabletPosition: 'center center',
-        mobilePosition: 'center center'
-      }));
-    slides.splice(2, 0, ...managedSlides);
-  }
-} catch { /* O carrossel padrão continua disponível durante uma falha de rede. */ }
-finally { clearTimeout(bannerTimeout); }
-
 const carousel = document.querySelector('#hero-carousel');
 const stage = document.querySelector('#hero-carousel-stage');
 const dots = document.querySelector('#hero-carousel-dots');
@@ -133,14 +85,22 @@ const responsiveActions = document.querySelector('#hero-carousel-responsive-acti
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const panels = [];
 const dotButtons = [];
+const IMAGE_DURATION = 5000;
+const VIDEO_STALL_TIMEOUT = 10000;
 let activeIndex = -1;
 let timer;
 let activationId = 0;
 let isInView = false;
 let pointerStart = null;
 let suppressClick = false;
-let pointerOver = false;
-let focusWithin = false;
+let rotationPaused = reducedMotion.matches;
+const pauseButton = document.querySelector('#hero-carousel-pause');
+
+function updatePauseButton() {
+  pauseButton.setAttribute('aria-pressed', String(rotationPaused));
+  pauseButton.setAttribute('aria-label', rotationPaused ? 'Retomar carrossel' : 'Pausar carrossel');
+  pauseButton.textContent = rotationPaused ? '▶' : 'Ⅱ';
+}
 
 function makeImage(slide) {
   const picture = document.createElement('picture');
@@ -167,9 +127,9 @@ function makeImage(slide) {
 
 function makeVideo(slide, index) {
   const video = index === 0 ? document.querySelector('#hero-first-video') || document.createElement('video') : document.createElement('video');
-  if (video.getAttribute('src') !== slide.src) video.src = slide.src;
-  video.poster = slide.poster || '';
-  video.preload = 'metadata';
+  video.dataset.src = slide.src;
+  video.poster = slide.poster || '/assets/hero-wesllen-poster.jpg';
+  video.preload = index === 0 ? 'auto' : 'none';
   video.muted = true;
   video.defaultMuted = true;
   video.playsInline = true;
@@ -179,13 +139,18 @@ function makeVideo(slide, index) {
   video.setAttribute('aria-label', slide.label);
   video.disablePictureInPicture = true;
   video.addEventListener('play', () => {
-    if ((activeIndex >= 0 && activeIndex !== index) || document.hidden) video.pause();
+    if (activeIndex !== slides.indexOf(slide) || !canAdvance()) video.pause();
   });
+  for (const eventName of ['playing', 'timeupdate', 'waiting', 'stalled']) {
+    video.addEventListener(eventName, () => {
+      if (activeIndex === slides.indexOf(slide)) scheduleNext(VIDEO_STALL_TIMEOUT);
+    });
+  }
   video.addEventListener('ended', () => {
-    if (activeIndex === slides.indexOf(slide)) activate(activeIndex + 1);
+    if (activeIndex === slides.indexOf(slide) && canAdvance()) activate(activeIndex + 1);
   });
   video.addEventListener('error', () => {
-    if (activeIndex === slides.indexOf(slide) && !reducedMotion.matches) scheduleNext();
+    if (activeIndex === slides.indexOf(slide) && canAdvance()) activate(activeIndex + 1);
   });
   return video;
 }
@@ -256,18 +221,82 @@ function createSlide(slide, index) {
     link.hidden = true;
     panel.append(link);
   }
-  panel.querySelector('img')?.addEventListener('load', () => layoutHotspots(index));
-  if (!panel.isConnected) stage.append(panel);
-  panels.push(panel);
+  panel.querySelector('img')?.addEventListener('load', () => layoutHotspots(slides.indexOf(slide)));
+  if (!panel.isConnected) stage.insertBefore(panel, panels[index] || null);
+  panels.splice(index, 0, panel);
 
   const dot = document.createElement('button');
   dot.type = 'button';
   dot.className = 'hero-carousel-dot';
   dot.setAttribute('aria-label', `Ir para slide ${index + 1}: ${slide.label || slide.alt}`);
   dot.setAttribute('aria-current', 'false');
-  dot.addEventListener('click', () => activate(index, true));
-  dots.append(dot);
-  dotButtons.push(dot);
+  dot.addEventListener('click', () => activate(slides.indexOf(slide)));
+  dots.insertBefore(dot, dotButtons[index] || null);
+  dotButtons.splice(index, 0, dot);
+}
+
+function insertSlide(index, slide) {
+  slides.splice(index, 0, slide);
+  createSlide(slide, index);
+  if (activeIndex >= index) activeIndex++;
+  slides.forEach((item, position) => {
+    panels[position].setAttribute('aria-label', `${position + 1} de ${slides.length}: ${item.label || item.alt}`);
+    dotButtons[position].setAttribute('aria-label', `Ir para slide ${position + 1}: ${item.label || item.alt}`);
+  });
+}
+
+// O catálogo remoto chega depois da inicialização, sem atrasar o primeiro vídeo.
+async function loadManagedSlides() {
+  const request = new AbortController();
+  const timeout = setTimeout(() => request.abort(), 4000);
+  try {
+    const response = await fetch('/api/catalog', { cache: 'no-store', signal: request.signal });
+    if (!response.ok) return;
+    const { settings = {}, products = [], banners = [] } = await response.json();
+    const availableHref = (href, fallback) => {
+      if (!href?.startsWith('/produto?id=')) return href;
+      const id = new URL(href, location.origin).searchParams.get('id');
+      return products.some(product => product.id === id && product.available) ? href : fallback;
+    };
+    insertSlide(1, {
+      type: settings.heroImage ? 'image' : 'custom',
+      desktop: settings.heroImage || '',
+      alt: settings.heroTitle || 'Destaques da Wesllen Imports',
+      label: settings.heroTitle || 'Destaques da loja',
+      desktopPosition: 'center center',
+      caption: {
+        eyebrow: settings.heroEyebrow || '',
+        title: settings.heroTitle || '',
+        subtitle: settings.heroSubtitle || '',
+        description: settings.heroDescription || '',
+        actions: [
+          [settings.heroPrimaryLabel, availableHref(settings.heroPrimaryLink, '/catalogo')],
+          [settings.heroSecondaryLabel, availableHref(settings.heroSecondaryLink, '/catalogo?categoria=Personalizados')]
+        ].filter(([label, href]) => label && href && (href.startsWith('/') || /^https?:\/\//i.test(href)))
+      }
+    });
+    const managedSlides = (Array.isArray(banners) ? banners : [])
+      .filter(banner => banner?.active && ['image', 'video'].includes(banner.type) && banner.src)
+      .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
+      .map(banner => ({
+        type: banner.type,
+        src: banner.type === 'video' ? banner.src : undefined,
+        desktop: banner.type === 'image' ? banner.src : undefined,
+        alt: banner.label || 'Destaque da Wesllen Imports',
+        label: banner.label || 'Destaque da loja',
+        href: availableHref(banner.href || '', '/catalogo'),
+        desktopPosition: 'center center',
+        tabletPosition: 'center center',
+        mobilePosition: 'center center'
+      }));
+    managedSlides.forEach((slide, index) => insertSlide(index + 2, slide));
+    if (activeIndex >= 0) {
+      const active = slides[activeIndex];
+      status.textContent = `Slide ${activeIndex + 1} de ${slides.length}: ${active.label || active.alt}`;
+      startPlayback();
+    }
+  } catch { /* Os banners locais continuam disponíveis durante uma falha de rede. */ }
+  finally { clearTimeout(timeout); }
 }
 
 function layoutHotspots(index) {
@@ -349,40 +378,85 @@ function stopPlayback() {
   clearTimeout(timer);
   if (activeIndex < 0) return;
   const video = panels[activeIndex].querySelector('video');
-  if (video) {
-    video.pause();
-    try { video.currentTime = 0; } catch { /* Metadata may not be ready. */ }
+  video?.pause();
+}
+
+function releaseInactiveVideo(panel) {
+  const video = panel?.querySelector('video');
+  if (!video?.hasAttribute('src')) return;
+  const release = () => {
+    if (panel.classList.contains('is-active')) return;
+    video.removeAttribute('src');
+    video.preload = 'none';
+    video.load();
+  };
+  if (reducedMotion.matches) release();
+  else {
+    const onTransitionEnd = event => {
+      if (event.target !== panel || event.propertyName !== 'opacity') return;
+      panel.removeEventListener('transitionend', onTransitionEnd);
+      release();
+    };
+    panel.addEventListener('transitionend', onTransitionEnd);
   }
 }
 
-function scheduleNext() {
+function canAdvance() {
+  return isInView && !document.hidden && !rotationPaused && activeIndex >= 0;
+}
+
+function scheduleNext(delay = IMAGE_DURATION) {
   clearTimeout(timer);
-  if (reducedMotion.matches || !isInView || document.hidden || pointerOver || focusWithin) return;
-  timer = setTimeout(() => activate(activeIndex + 1), 5000);
+  if (!canAdvance()) return;
+  const scheduledIndex = activeIndex;
+  timer = setTimeout(() => {
+    if (canAdvance() && activeIndex === scheduledIndex) activate(scheduledIndex + 1);
+  }, delay);
 }
 
 function startPlayback() {
-  if (!isInView || document.hidden || activeIndex < 0 || reducedMotion.matches) return;
+  if (!canAdvance()) return;
   const video = panels[activeIndex].querySelector('video');
   if (!video) {
-    if (!reducedMotion.matches) scheduleNext();
+    scheduleNext();
     return;
   }
+  if (!video.hasAttribute('src')) video.src = video.dataset.src;
+  if (video.error) {
+    activate(activeIndex + 1);
+    return;
+  }
+  video.preload = 'auto';
+  scheduleNext(VIDEO_STALL_TIMEOUT);
+  const playingIndex = activeIndex;
+  const playingActivation = activationId;
   const attempt = video.play();
-  if (attempt?.catch) attempt.catch(() => scheduleNext());
+  if (attempt?.catch) attempt.catch(() => {
+    if (activeIndex === playingIndex && activationId === playingActivation) scheduleNext(3000);
+  });
 }
 
-async function activate(index, manual = false) {
-  const next = (index + slides.length) % slides.length;
-  const request = ++activationId;
-  const image = ensureImage(next);
-  if (image && !image.complete) {
+async function waitForImage(image) {
+  if (!image || image.complete) return;
+  let timeout;
+  try {
     await Promise.race([
       image.decode().catch(() => {}),
-      new Promise(resolve => setTimeout(resolve, 2500))
+      new Promise(resolve => { timeout = setTimeout(resolve, 2500); })
     ]);
+  } finally {
+    clearTimeout(timeout);
   }
+}
+
+async function activate(index) {
+  const next = (index + slides.length) % slides.length;
+  const request = ++activationId;
+  clearTimeout(timer);
+  const image = ensureImage(next);
+  if (image && !image.complete) await waitForImage(image);
   if (request !== activationId) return;
+  const previousPanel = panels[activeIndex];
   stopPlayback();
   activeIndex = next;
   panels.forEach((panel, panelIndex) => {
@@ -392,6 +466,7 @@ async function activate(index, manual = false) {
     panel.inert = !selected;
     dotButtons[panelIndex].setAttribute('aria-current', String(selected));
   });
+  if (previousPanel !== panels[next]) releaseInactiveVideo(previousPanel);
   layoutHotspots(next);
   renderResponsiveActions(slides[next]);
   status.textContent = `Slide ${next + 1} de ${slides.length}: ${slides[next].label || slides[next].alt}`;
@@ -400,20 +475,20 @@ async function activate(index, manual = false) {
 }
 
 slides.forEach(createSlide);
-new ResizeObserver(() => panels.forEach((_, index) => layoutHotspots(index))).observe(stage);
-carousel.addEventListener('pointerenter', () => { pointerOver = true; clearTimeout(timer); });
-carousel.addEventListener('pointerleave', () => {
-  pointerOver = false;
-  if (!panels[activeIndex]?.querySelector('video')) scheduleNext();
+if ('ResizeObserver' in window) {
+  new ResizeObserver(() => panels.forEach((_, index) => layoutHotspots(index))).observe(stage);
+} else {
+  window.addEventListener('resize', () => panels.forEach((_, index) => layoutHotspots(index)));
+}
+document.querySelector('#hero-carousel-prev').addEventListener('click', () => activate(activeIndex - 1));
+document.querySelector('#hero-carousel-next').addEventListener('click', () => activate(activeIndex + 1));
+updatePauseButton();
+pauseButton.addEventListener('click', () => {
+  rotationPaused = !rotationPaused;
+  updatePauseButton();
+  if (rotationPaused) stopPlayback();
+  else startPlayback();
 });
-carousel.addEventListener('focusin', () => { focusWithin = true; clearTimeout(timer); });
-carousel.addEventListener('focusout', event => {
-  if (carousel.contains(event.relatedTarget)) return;
-  focusWithin = false;
-  if (!panels[activeIndex]?.querySelector('video')) scheduleNext();
-});
-document.querySelector('#hero-carousel-prev').addEventListener('click', () => activate(activeIndex - 1, true));
-document.querySelector('#hero-carousel-next').addEventListener('click', () => activate(activeIndex + 1, true));
 
 stage.addEventListener('pointerdown', event => {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -426,7 +501,7 @@ stage.addEventListener('pointerup', event => {
   pointerStart = null;
   if (Math.abs(deltaX) < 45 || Math.abs(deltaX) < Math.abs(deltaY) * 1.3) return;
   suppressClick = true;
-  activate(activeIndex + (deltaX < 0 ? 1 : -1), true);
+  activate(activeIndex + (deltaX < 0 ? 1 : -1));
   setTimeout(() => { suppressClick = false; }, 0);
 });
 stage.addEventListener('pointercancel', () => { pointerStart = null; });
@@ -442,6 +517,8 @@ document.addEventListener('visibilitychange', () => {
   else startPlayback();
 });
 reducedMotion.addEventListener?.('change', () => {
+  rotationPaused = reducedMotion.matches;
+  updatePauseButton();
   stopPlayback();
   startPlayback();
 });
@@ -457,3 +534,4 @@ if ('IntersectionObserver' in window) {
   isInView = true;
 }
 activate(0);
+loadManagedSlides();
