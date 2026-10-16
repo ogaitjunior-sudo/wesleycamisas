@@ -9,6 +9,7 @@ import { lookupPostalAddress } from './address.js';
 import { normalizedCatalog, publicationIssues } from './publication.js';
 import { SIZES, productSizes } from './public/sizes.js';
 import { createSupabaseStore } from './supabase-store.js';
+import { saleItemsFrom, applySale } from './stock.js';
 import { prepareTeamsCatalog } from './teams.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -25,6 +26,7 @@ const dataDir = path.resolve(process.env.DATA_DIR || path.join(root, 'data'));
 const uploadDir = path.join(publicDir, 'uploads');
 const catalogFile = path.join(dataDir, 'catalog.json');
 const quotesFile = path.join(dataDir, 'quotes.json');
+const salesFile = path.join(dataDir, 'sales.json');
 const adminFile = path.join(dataDir, 'admin.json');
 const accessFile = path.join(dataDir, 'admin-access.txt');
 const sessions = new Map();
@@ -105,6 +107,7 @@ function readJson(file, fallback) {
 }
 if (!hosted && !fs.existsSync(catalogFile)) writeJson(catalogFile, initialCatalog);
 if (!hosted && !fs.existsSync(quotesFile)) writeJson(quotesFile, []);
+if (!hosted && !fs.existsSync(salesFile)) writeJson(salesFile, []);
 if (!production && !environmentHash && !fs.existsSync(adminFile)) {
   const password = crypto.randomBytes(15).toString('base64url');
   const salt = crypto.randomBytes(16).toString('hex');
@@ -152,6 +155,24 @@ async function saveQuote(quote) {
     quotes.unshift(quote);
     writeJson(quotesFile, quotes.slice(0, 2000));
   }
+}
+async function getSales() {
+  return supabase ? supabase.readSales() : readJson(salesFile, []);
+}
+async function confirmSale(sale) {
+  if (supabase) return supabase.confirmSale(sale);
+  const sales = readJson(salesFile, []);
+  const existing = sales.find(entry => entry.id === sale.id || (sale.quoteId && entry.quoteId === sale.quoteId));
+  if (existing) {
+    if (existing.id !== sale.id || existing.quoteId !== sale.quoteId || JSON.stringify(existing.items) !== JSON.stringify(sale.items))
+      throw Object.assign(new Error('Esta venda já foi confirmada com outros dados.'), { status: 409 });
+    return { alreadyConfirmed: true, id: sale.id };
+  }
+  const current = prepareTeamsCatalog(readJson(catalogFile, initialCatalog));
+  const items = saleItemsFrom(sale.items, current);
+  writeJson(catalogFile, applySale(current, items));
+  writeJson(salesFile, [{ ...sale, confirmedAt: new Date().toISOString() }, ...sales]);
+  return { alreadyConfirmed: false, id: sale.id };
 }
 
 function json(res, status, value, headers = {}) {
@@ -471,6 +492,27 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, unpublished });
     }
     if (pathname === '/api/admin/quotes' && req.method === 'GET') return json(res, 200, await getQuotes());
+    if (pathname === '/api/admin/sales' && req.method === 'GET') return json(res, 200, await getSales());
+    if (pathname === '/api/admin/sales' && req.method === 'POST') {
+      if (!sameOrigin(req)) return json(res, 403, { error: 'Origem da solicitação inválida.' });
+      const payload = await body(req, 20_000);
+      const quoteId = payload.quoteId ? String(payload.quoteId) : null;
+      const id = String(payload.id || '');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||
+          (quoteId && (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(quoteId) || id !== quoteId)))
+        return json(res, 400, { error: 'Identificador da venda inválido.' });
+      const quote = quoteId ? (await getQuotes()).find(entry => entry.id === quoteId) : null;
+      if (quoteId && !quote) return json(res, 404, { error: 'Orçamento não encontrado.' });
+      const existing = (await getSales()).find(entry => entry.id === id || (quoteId && entry.quoteId === quoteId));
+      if (existing) {
+        if (existing.id !== id || existing.quoteId !== quoteId || (!quoteId && JSON.stringify(existing.items) !== JSON.stringify(payload.items))) return json(res, 409, { error: 'Esta venda já foi confirmada com outros dados.' });
+        return json(res, 200, { id, alreadyConfirmed: true });
+      }
+      const catalog = await getCatalog();
+      const items = saleItemsFrom(quote ? quote.items : payload.items, catalog);
+      const result = await confirmSale({ id, quoteId, items });
+      return json(res, 200, result);
+    }
     if (pathname === '/api/admin/password' && req.method === 'PUT') {
       if (environmentHash) return json(res, 409, { error: 'Senha gerenciada pela configuração segura do servidor.' });
       const payload = await body(req, 4000);

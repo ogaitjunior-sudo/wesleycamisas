@@ -68,7 +68,7 @@ test('modo Vercel preserva sessão, catálogo e configurações com Supabase sim
     assert.match(photo, /^https:\/\/example\.supabase\.co\/storage\/v1\/object\/public\/wesllen-products\//);
     const catalog = await (await fetch(`${base}/api/admin/catalog`, {headers:{cookie}})).json();
     catalog.products.push({id:'test-bone',name:'Boné de teste',category:'Bonés',price:50,priceConfirmed:true,image:photo,photos:[],available:true,fulfillment:'order',customizable:false});
-    catalog.products.push({id:'test-shirt',name:'Camisa Flamengo de teste',category:'Camisas',team_id:'flamengo',team:'flamengo',sizes:['M'],price:149.9,priceConfirmed:true,image:photo,photos:[],available:true,status:'published',fulfillment:'order',customizable:true,personalizationFields:['name','number'],personalizationPrice:25});
+    catalog.products.push({id:'test-shirt',name:'Camisa Flamengo de teste',category:'Camisas',team_id:'flamengo',team:'flamengo',sizes:['M'],sizeStock:{M:1},stock:1,price:149.9,priceConfirmed:true,image:photo,photos:[],available:true,status:'published',fulfillment:'order',customizable:true,personalizationFields:['name','number'],personalizationPrice:25});
     catalog.settings.announcement = 'Configuração persistida';
     catalog.settings.internalToken = 'somente-no-painel';
     assert.equal((await fetch(`${base}/api/admin/catalog`, {method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify(catalog)})).status, 200);

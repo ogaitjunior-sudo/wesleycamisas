@@ -6,7 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = path.join(root, `release-preview-${Date.now()}-${process.pid}`);
 fs.mkdirSync(output, { recursive: false });
 
-for (const name of ['package.json', 'server.js', 'supabase-store.js', 'teams.js', 'order.js', 'publication.js', 'shipping.js', 'vercel.json', '.vercelignore']) {
+for (const name of ['package.json', 'server.js', 'supabase-store.js', 'teams.js', 'order.js', 'stock.js', 'publication.js', 'shipping.js', 'vercel.json', '.vercelignore']) {
   fs.copyFileSync(path.join(root, name), path.join(output, name));
 }
 const localUploads = path.join(root, 'public', 'uploads');
@@ -17,7 +17,7 @@ fs.cpSync(path.join(root, 'public'), path.join(output, 'public'), {
 fs.cpSync(path.join(root, 'api'), path.join(output, 'api'), { recursive: true });
 fs.cpSync(path.join(root, 'scripts'), path.join(output, 'scripts'), { recursive: true });
 
-for (const privateName of ['admin-access.txt', 'admin.json', 'quotes.json']) {
+for (const privateName of ['admin-access.txt', 'admin.json', 'quotes.json', 'sales.json']) {
   if (fs.existsSync(path.join(output, 'data', privateName))) {
     throw new Error(`Arquivo privado detectado no pacote: ${privateName}`);
   }

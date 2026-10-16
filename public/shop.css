@@ -192,3 +192,6 @@ body { background: radial-gradient(circle at top left,#5c3908 0,#100e0b 30%,#050
   .shop-item-total { min-width:0; }
   .shop-item-total strong { font-size:clamp(20px,7vw,27px); white-space:nowrap; }
 }
+.cart-size-change { display:inline-flex; align-items:center; gap:7px; flex-wrap:wrap; color:#bbb; font-size:12px; font-weight:700; }
+.cart-size-change select { max-width:100%; min-height:40px; padding:6px 8px; border:1px solid #68605a; border-radius:5px; background:#242424; color:#fff; font:600 13px 'Segoe UI',Arial,sans-serif; }
+.cart-size-change select:focus-visible { outline:2px solid var(--shop-gold); outline-offset:2px; }

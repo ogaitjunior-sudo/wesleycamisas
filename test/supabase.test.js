@@ -41,6 +41,21 @@ test('seed recebe conflito sem sobrescrever catálogo existente', async () => {
   await assert.rejects(store.insertCatalogIfEmpty({ products: [] }), /\(409, 23505\)/);
 });
 
+test('baixa confirmada usa RPC do Supabase e lista comprovantes persistidos', async () => {
+  const calls=[];
+  const store=createSupabaseStore({url:'https://example.supabase.co',secret:'sb_secret_fixture',fetchImpl:async (url,options)=>{
+    calls.push({url,options});
+    if (url.includes('wesllen_sales')) return Response.json([{id:'sale-1',quote_id:'quote-1',items:[{productId:'shirt',size:'G',quantity:1}],confirmed_at:'2026-10-16T12:00:00Z'}]);
+    return Response.json({id:'sale-1',alreadyConfirmed:false});
+  }});
+  assert.deepEqual(await store.readSales(),[{id:'sale-1',quoteId:'quote-1',items:[{productId:'shirt',size:'G',quantity:1}],confirmedAt:'2026-10-16T12:00:00Z'}]);
+  const result=await store.confirmSale({id:'sale-1',quoteId:'quote-1',items:[{productId:'shirt',size:'G',quantity:1}]});
+  assert.equal(result.alreadyConfirmed,false);
+  assert.equal(new URL(calls[1].url).pathname,'/rest/v1/rpc/wesllen_confirm_sale');
+  assert.equal(JSON.parse(calls[1].options.body).p_quote_id,'quote-1');
+  assert.ok(calls.every(call=>call.options.headers.apikey==='sb_secret_fixture'));
+});
+
 test('publicação aceita apenas foto remota do bucket configurado', () => {
   const base = 'https://example.supabase.co/storage/v1/object/public/wesllen-products/';
   const product = {
@@ -59,10 +74,13 @@ test('status publicado só entra na loja quando a camisa está completa', () => 
   const base = 'https://example.supabase.co/storage/v1/object/public/wesllen-products/';
   const shirt = { id:'real-test', name:'Camisa Real Madrid', category:'Camisas internacionais', team_id:'real-madrid',
     price:199, priceConfirmed:true, image:`${base}12345678-1234-1234-1234-123456789abc.webp`, photos:[],
-    sizes:['M'], fulfillment:'order', available:true, status:'published' };
+    sizes:['M'], sizeStock:{M:1}, stock:1, fulfillment:'order', available:true, status:'published' };
   const catalog = { productCategories:['Camisas internacionais'], categories:[{id:'real-madrid',is_active:true}], products:[shirt] };
   assert.deepEqual(publicationIssues(shirt,catalog,'.',base),[]);
   assert.equal(normalizedCatalog(catalog,'.',base).products[0].status,'published');
+  const soldOut=normalizedCatalog({...catalog,products:[{...shirt,fulfillment:'ready',sizeStock:{M:0},stock:0}]},'.',base).products[0];
+  assert.equal(soldOut.status,'published');
+  assert.equal(soldOut.stock,0);
   const incomplete = normalizedCatalog({...catalog,products:[{...shirt,image:''}]},'.',base).products[0];
   assert.equal(incomplete.status,'draft');
   assert.equal(incomplete.available,false);

@@ -32,8 +32,10 @@ export function createSupabaseStore({ url, secret, fetchImpl = fetch }) {
       throw unavailable('Não foi possível conectar ao Supabase.');
     }
     if (!response.ok) {
-      let code = '';
-      try { code = String((await response.json()).code || ''); } catch {}
+      let code = '', message = '';
+      try { const error = await response.json(); code = String(error.code || ''); message = String(error.message || ''); } catch {}
+      if (route === '/rest/v1/rpc/wesllen_confirm_sale' && code === 'P0001')
+        throw Object.assign(new Error(message || 'Não foi possível confirmar a venda.'), { status: 409 });
       throw unavailable(`Supabase recusou a operação (${response.status}${code ? `, ${code}` : ''}). Confira a migração, permissões e o bucket.`);
     }
     const content = await response.text();
@@ -83,6 +85,16 @@ export function createSupabaseStore({ url, secret, fetchImpl = fetch }) {
       await request('/rest/v1/wesllen_quotes', {
         method: 'POST', headers: { ...jsonHeaders, Prefer: 'return=minimal' },
         body: JSON.stringify({ id: quote.id, created_at: quote.createdAt, payload: quote })
+      });
+    },
+    async readSales() {
+      const rows = await request('/rest/v1/wesllen_sales?select=id,quote_id,items,confirmed_at&order=confirmed_at.desc&limit=2000');
+      return rows.map(row => ({ id: row.id, quoteId: row.quote_id, items: row.items, confirmedAt: row.confirmed_at }));
+    },
+    async confirmSale(sale) {
+      return request('/rest/v1/rpc/wesllen_confirm_sale', {
+        method: 'POST', headers: jsonHeaders,
+        body: JSON.stringify({ p_id: sale.id, p_quote_id: sale.quoteId || null, p_items: sale.items })
       });
     },
     async uploadPhoto(filename, mime, bytes) {

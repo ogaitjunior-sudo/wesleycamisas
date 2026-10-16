@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { isApparel, productSizes, sizeStock } from './public/sizes.js';
+import { isApparel, productSizes } from './public/sizes.js';
 
 export function publicationIssues(product, catalog, uploadDir, publicPhotoBase = '') {
   const issues = [];
@@ -19,10 +19,12 @@ export function publicationIssues(product, catalog, uploadDir, publicPhotoBase =
   const shirt = /^camisas?\b/i.test(String(product.category)) || /\bcamisa\b/i.test(String(product.name));
   if (shirt && !catalog.categories?.some(team => team.id === (product.team_id || product.team) && team.is_active !== false)) issues.push('time / clube ativo');
   if (isApparel(product) && !productSizes(product).length) issues.push('tamanhos');
-  if (isApparel(product) && productSizes(product).length && !productSizes(product).some(size => sizeStock(product, size) > 0)) issues.push('estoque por tamanho');
+  if (isApparel(product) && productSizes(product).length &&
+      (!product.sizeStock || productSizes(product).some(size => !Number.isSafeInteger(product.sizeStock[size]) || product.sizeStock[size] < 0)))
+    issues.push('estoque por tamanho');
   if (product.customizable && (!Array.isArray(product.personalizationFields) || product.personalizationFields.length === 0)) issues.push('campos de personalização');
   if (!['ready','order'].includes(product.fulfillment)) issues.push('tipo de entrega');
-  if (product.fulfillment === 'ready' && (product.stock == null || Number(product.stock) <= 0)) issues.push('estoque disponível');
+  if (product.fulfillment === 'ready' && (product.stock == null || !Number.isSafeInteger(Number(product.stock)) || Number(product.stock) < 0)) issues.push('estoque disponível');
   return issues;
 }
 

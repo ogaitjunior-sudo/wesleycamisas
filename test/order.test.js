@@ -5,7 +5,7 @@ import { quoteFrom } from '../order.js';
 
 const catalog = JSON.parse(fs.readFileSync(new URL('../data/catalog.json',import.meta.url),'utf8'));
 // Cenários isolados: os itens do catálogo real permanecem inativos até Wesley cadastrá-los.
-catalog.products.forEach(product => { product.available = true; product.fulfillment = 'order'; });
+catalog.products.forEach(product => { product.available = true; product.fulfillment = 'order'; if (product.sizes?.length) product.sizeStock=Object.fromEntries(product.sizes.map(size=>[size,10])); });
 const shirt = (quantity = 1) => ({ productId:'barcelona-2627', size:'G', quantity, personalization:{name:'WESLEY',number:'10'} });
 const mug = (quantity = 1) => ({ productId:'caneca-preta', size:'', quantity, personalization:{} });
 
@@ -40,6 +40,7 @@ test('o orçamento respeita o estoque total e os campos de personalização do p
   const current=structuredClone(catalog);
   const product=current.products.find(item=>item.id==='barcelona-2627');
   product.fulfillment='ready';product.stock=2;product.personalizationFields=['name','number'];
+  product.sizeStock={P:0,M:0,G:2,GG:0,G1:0};
   const customer={name:'Ana',city:'Salvador'};
   assert.throws(()=>quoteFrom({customer,items:[shirt(2),{...shirt(1),size:'M'}]},current),/Estoque insuficiente/);
   assert.throws(()=>quoteFrom({customer,items:[{...shirt(),personalization:{phrase:'Frase extra'}}]},current),/não está disponível/);

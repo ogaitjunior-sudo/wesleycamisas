@@ -111,7 +111,7 @@ test('times do painel, produto relacionado e persistência local', async () => {
     const photo=await upload('product');
     const real=catalog.categories.find(team=>team.id==='real-madrid');
     real.logo_url=logo;real.sort_order=0;real.show_on_home=true;
-    catalog.products.push({id:'teams-test-shirt',name:'Camisa de teste',description:'Somente homologação',category:'Camisas',team_id:'real-madrid',team:'real-madrid',price:99,priceConfirmed:true,promoPrice:null,image:photo,photos:[],available:true,fulfillment:'ready',stock:2,sizes:['G'],customizable:false});
+    catalog.products.push({id:'teams-test-shirt',name:'Camisa de teste',description:'Somente homologação',category:'Camisas',team_id:'real-madrid',team:'real-madrid',price:99,priceConfirmed:true,promoPrice:null,image:photo,photos:[],available:true,fulfillment:'ready',stock:2,sizes:['G'],sizeStock:{G:2},customizable:false});
     assert.equal((await save(catalog)).status,200);
     let publicCatalog=await (await fetch(`${base}/api/catalog`)).json();
     assert.equal(publicCatalog.products.filter(product=>product.team_id==='real-madrid').length,1);

@@ -5,7 +5,7 @@ import { orderItemsFrom, quoteFrom } from '../order.js';
 
 const catalog = {
   settings: { name: 'Wesllen Imports', shippingEnabled: true, shippingOriginCep: '48400-000' },
-  products: [{ id: 'camisa', name: 'Camisa de teste', available: true, fulfillment: 'order', price: 149.90, sizes: ['G'], customizable: true, personalizationPrice: 25, shipping: { width: 25, height: 5, length: 30, weight: 0.4 } }]
+  products: [{ id: 'camisa', name: 'Camisa de teste', available: true, fulfillment: 'order', price: 149.90, sizes: ['G'], sizeStock:{G:10}, customizable: true, personalizationPrice: 25, shipping: { width: 25, height: 5, length: 30, weight: 0.4 } }]
 };
 const cart = [{ productId: 'camisa', size: 'G', quantity: 2, personalization: { name: 'TESTE', number: '10' } }];
 const credentials = { token: 'test-only', userAgent: 'Wesllen Imports (teste@example.com)' };
