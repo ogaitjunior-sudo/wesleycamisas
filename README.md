@@ -10,6 +10,10 @@ Na primeira execução **local de desenvolvimento**, o servidor cria uma senha t
 
 ## Painel e dados
 
+### Tamanhos e estoque
+
+Produtos de vestuário podem usar PP, P, M, G, GG, G1, G2 e G3. No formulário do produto, marque apenas os tamanhos vendidos e informe a quantidade de cada um; zero mantém o tamanho visível como esgotado. O estoque total de itens com tamanho é calculado pela soma dessas quantidades. A sacola e o servidor conferem o limite de cada tamanho, e o pedido enviado pelo WhatsApp inclui a escolha do cliente. Essas informações ficam em `products[].sizes` e `products[].sizeStock` no documento JSON do catálogo já existente no Supabase; não é necessária outra migração SQL. O tamanho antigo XG é exibido como G1. Antes de salvar um produto antigo, confira a distribuição de seu estoque entre os tamanhos no painel.
+
 O painel permite gerir produtos, fotos, categorias, banners, promoções e configurações. Na prévia local sem Supabase, produtos, configurações e orçamentos ficam em `data`; fotos enviadas ficam em `public/uploads`. Com `SUPABASE_URL` e `SUPABASE_SECRET_KEY` configurados, catálogo e orçamentos ficam no banco Supabase e fotos novas vão para Supabase Storage. A loja nunca envia a chave secreta ao navegador. Não sirva `data` como conteúdo público.
 
 Em **Configurações**, nome, slogan, WhatsApp, URL do Instagram, chave **Instagram ativo**, endereço, mensagem de atendimento e valor padrão da personalização são gerenciados em um lugar. O Instagram só aparece com a chave ativa e uma URL HTTPS válida de perfil. O WhatsApp do pedido usa o mesmo número cadastrado ali, com o pedido completo calculado pelo servidor. O número atual foi preservado; confira-o antes de publicar.

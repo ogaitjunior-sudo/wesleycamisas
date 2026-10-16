@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { isApparel, productSizes, sizeStock } from './public/sizes.js';
 
 export function publicationIssues(product, catalog, uploadDir, publicPhotoBase = '') {
   const issues = [];
@@ -17,7 +18,8 @@ export function publicationIssues(product, catalog, uploadDir, publicPhotoBase =
   if (!uploaded || !product.image) issues.push('foto real enviada pelo painel');
   const shirt = /^camisas?\b/i.test(String(product.category)) || /\bcamisa\b/i.test(String(product.name));
   if (shirt && !catalog.categories?.some(team => team.id === (product.team_id || product.team) && team.is_active !== false)) issues.push('time / clube ativo');
-  if (shirt && (!Array.isArray(product.sizes) || !product.sizes.some(size => ['P','M','G','GG','XG'].includes(size)))) issues.push('tamanhos');
+  if (isApparel(product) && !productSizes(product).length) issues.push('tamanhos');
+  if (isApparel(product) && productSizes(product).length && !productSizes(product).some(size => sizeStock(product, size) > 0)) issues.push('estoque por tamanho');
   if (product.customizable && (!Array.isArray(product.personalizationFields) || product.personalizationFields.length === 0)) issues.push('campos de personalização');
   if (!['ready','order'].includes(product.fulfillment)) issues.push('tipo de entrega');
   if (product.fulfillment === 'ready' && (product.stock == null || Number(product.stock) <= 0)) issues.push('estoque disponível');
@@ -29,6 +31,10 @@ export function normalizedCatalog(catalog, uploadDir, publicPhotoBase = '') {
     const requestedStatus = product.available === true ? 'published' : product.status === 'draft' ? 'draft' : 'inactive';
     const status = requestedStatus === 'published' && publicationIssues(product, catalog, uploadDir, publicPhotoBase).length
       ? 'draft' : requestedStatus;
-    return { ...product, status, available: status === 'published' };
+    const sizes = productSizes(product);
+    const sizeStock = product.sizeStock
+      ? { ...product.sizeStock, ...(Object.hasOwn(product.sizeStock, 'XG') ? { G1: product.sizeStock.G1 ?? product.sizeStock.XG } : {}) } : null;
+    if (sizeStock) delete sizeStock.XG;
+    return { ...product, sizes, ...(sizeStock ? { sizeStock } : {}), status, available: status === 'published' };
   }) };
 }

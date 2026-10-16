@@ -107,6 +107,13 @@ test('produção protege o painel e mantém catálogo, upload, edição e pedido
     const result=await quote.json();
     assert.ok(result.url.startsWith(`https://wa.me/${expectedPhone}?text=`));
     assert.match(decodeURIComponent(result.url),/TESTE ÁÇÚ/);
+    product.sizes=['M','G'];product.sizeStock={M:1,G:2};
+    assert.equal((await save()).status,200);
+    observed=await (await fetch(`${base}/api/catalog`)).json();
+    assert.deepEqual(observed.products.find(p=>p.id===product.id).sizeStock,{M:1,G:2});
+    const sizeRequest=size=>fetch(`${base}/api/quotes`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:[{productId:product.id,size,quantity:2}],customer:{name:'Cliente Teste',city:'Cidade Teste'}})});
+    assert.equal((await sizeRequest('M')).status,400);
+    assert.equal((await sizeRequest('G')).status,200);
     product.image='';
     assert.equal((await save()).status,200);
     assert.equal((await (await fetch(`${base}/api/catalog`)).json()).products.some(p=>p.id===product.id),false);

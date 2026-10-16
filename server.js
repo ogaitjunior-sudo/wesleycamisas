@@ -7,6 +7,7 @@ import { quoteFrom, orderItemsFrom } from './order.js';
 import { calculateShipping, shippingMeasurements } from './shipping.js';
 import { lookupPostalAddress } from './address.js';
 import { normalizedCatalog, publicationIssues } from './publication.js';
+import { SIZES, productSizes } from './public/sizes.js';
 import { createSupabaseStore } from './supabase-store.js';
 import { prepareTeamsCatalog } from './teams.js';
 
@@ -81,10 +82,10 @@ const initialCatalog = {
     { id: 'retro', name: 'Retrô', emblem: '⭐' }
   ],
   products: [
-    { id: 'real-2627', name: 'Camisa Real Madrid 26/27', description: 'Camisa importada com acabamento premium e tecido leve para viver o futebol em qualquer ocasião.', category: 'Camisas', team: 'real-madrid', price: 189.9, promoPrice: null, image: '', photos: [], available: false, featured: true, bestseller: true, new: true, customizable: true, personalizationPrice: 25, sizes: ['P','M','G','GG','XG'], badge: 'Novo' },
-    { id: 'flamengo-2627', name: 'Camisa Flamengo 26/27', description: 'O manto rubro-negro em uma versão importada para torcer com estilo.', category: 'Camisas', team: 'flamengo', price: 179.9, promoPrice: null, image: '', photos: [], available: false, featured: true, bestseller: true, new: false, customizable: true, personalizationPrice: 25, sizes: ['P','M','G','GG','XG'], badge: 'Mais vendido' },
-    { id: 'barcelona-2627', name: 'Camisa Barcelona 26/27', description: 'Camisa importada azul e grená para vestir a paixão pelo Barça.', category: 'Camisas', team: 'barcelona', price: 189.9, promoPrice: null, image: '', photos: [], available: false, featured: true, bestseller: true, new: false, customizable: true, personalizationPrice: 25, sizes: ['P','M','G','GG','XG'], badge: 'Personalize' },
-    { id: 'personalizada-10', name: 'Camisa Personalizada', description: 'Crie sua camisa com nome e número. Escolha o tamanho e faça do seu jeito.', category: 'Personalizados', team: 'brasileirao', price: 159.9, promoPrice: null, image: '', photos: [], available: false, featured: true, bestseller: false, new: false, customizable: true, personalizationPrice: 0, sizes: ['P','M','G','GG','XG'], badge: 'Personalize' },
+    { id: 'real-2627', name: 'Camisa Real Madrid 26/27', description: 'Camisa importada com acabamento premium e tecido leve para viver o futebol em qualquer ocasião.', category: 'Camisas', team: 'real-madrid', price: 189.9, promoPrice: null, image: '', photos: [], available: false, featured: true, bestseller: true, new: true, customizable: true, personalizationPrice: 25, sizes: ['P','M','G','GG','G1'], badge: 'Novo' },
+    { id: 'flamengo-2627', name: 'Camisa Flamengo 26/27', description: 'O manto rubro-negro em uma versão importada para torcer com estilo.', category: 'Camisas', team: 'flamengo', price: 179.9, promoPrice: null, image: '', photos: [], available: false, featured: true, bestseller: true, new: false, customizable: true, personalizationPrice: 25, sizes: ['P','M','G','GG','G1'], badge: 'Mais vendido' },
+    { id: 'barcelona-2627', name: 'Camisa Barcelona 26/27', description: 'Camisa importada azul e grená para vestir a paixão pelo Barça.', category: 'Camisas', team: 'barcelona', price: 189.9, promoPrice: null, image: '', photos: [], available: false, featured: true, bestseller: true, new: false, customizable: true, personalizationPrice: 25, sizes: ['P','M','G','GG','G1'], badge: 'Personalize' },
+    { id: 'personalizada-10', name: 'Camisa Personalizada', description: 'Crie sua camisa com nome e número. Escolha o tamanho e faça do seu jeito.', category: 'Personalizados', team: 'brasileirao', price: 159.9, promoPrice: null, image: '', photos: [], available: false, featured: true, bestseller: false, new: false, customizable: true, personalizationPrice: 0, sizes: ['P','M','G','GG','G1'], badge: 'Personalize' },
     { id: 'caneca-preta', name: 'Caneca Personalizada', model: 'Preta', description: 'Caneca de cerâmica preta para presentear ou celebrar o seu time.', category: 'Canecas', team: '', price: 39.9, promoPrice: null, image: '', photos: [], available: false, featured: false, bestseller: false, new: false, customizable: true, personalizationPrice: 0, sizes: [], badge: '' },
     { id: 'bone-wesllen', name: 'Boné Esportivo', description: 'Boné com visual esportivo e ajuste confortável.', category: 'Bonés', team: '', price: 69.9, promoPrice: null, image: '', photos: [], available: false, featured: false, bestseller: false, new: false, customizable: false, personalizationPrice: 0, sizes: [], badge: '' },
     { id: 'chaveiro-futebol', name: 'Presente Personalizado', description: 'Um presente especial para quem vive o futebol todos os dias.', category: 'Presentes', team: '', price: 29.9, promoPrice: null, image: '', photos: [], available: false, featured: false, bestseller: false, new: false, customizable: true, personalizationPrice: 0, sizes: [], badge: '' },
@@ -442,6 +443,13 @@ const server = http.createServer(async (req, res) => {
         if(product.status!=null&&!['published','draft','inactive'].includes(product.status))return json(res,400,{error:'Status de produto inválido.'});
         ids.add(product.id);
         if(product.stock!=null&&(!Number.isInteger(Number(product.stock))||Number(product.stock)<0))return json(res,400,{error:'Estoque inválido.'});
+        product.sizes ??= [];
+        if(!Array.isArray(product.sizes)||product.sizes.some(size=>![...SIZES,'XG'].includes(size))||new Set(product.sizes).size!==product.sizes.length)return json(res,400,{error:'Tamanhos inválidos.'});
+        if(product.sizeStock!=null){
+          if(typeof product.sizeStock!=='object'||Array.isArray(product.sizeStock)||Object.keys(product.sizeStock).some(size=>!SIZES.includes(size)||!productSizes(product).includes(size)||!Number.isInteger(product.sizeStock[size])||product.sizeStock[size]<0))return json(res,400,{error:'Estoque por tamanho inválido.'});
+          if(productSizes(product).some(size=>!Object.hasOwn(product.sizeStock,size)))return json(res,400,{error:'Informe o estoque de cada tamanho selecionado.'});
+          product.stock=Object.values(product.sizeStock).reduce((sum,quantity)=>sum+quantity,0);
+        }
         if(product.promoPrice!=null&&(!Number.isFinite(Number(product.promoPrice))||Number(product.promoPrice)<=0||Number(product.promoPrice)>=Number(product.price)))return json(res,400,{error:'Preço promocional inválido.'});
         if(product.promotion&&!product.promoPrice)return json(res,400,{error:'Promoção precisa de preço promocional.'});
         if(product.fulfillment&&!['ready','order'].includes(product.fulfillment))return json(res,400,{error:'Tipo de entrega inválido.'});

@@ -1,4 +1,5 @@
 import { withDemoProducts } from './demo-products.js';
+import { isApparel, productSizes, sizeStock } from './sizes.js';
 const $ = selector => document.querySelector(selector);
 const money = value => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -22,7 +23,7 @@ let submittingOrder = false;
 try {
   const stored = JSON.parse(localStorage.getItem('wesllen-cart') || '[]');
   cart = Array.isArray(stored) ? stored.filter(item => item && typeof item.productId === 'string' && Number.isInteger(Number(item.quantity)) && Number(item.quantity) > 0)
-    .map(item => ({ ...item, quantity: Math.min(99, Number(item.quantity)), personalization: item.personalization && typeof item.personalization === 'object' && !Array.isArray(item.personalization) ? item.personalization : {} })) : [];
+    .map(item => ({ ...item, size: item.size === 'XG' ? 'G1' : item.size || '', quantity: Math.min(99, Number(item.quantity)), personalization: item.personalization && typeof item.personalization === 'object' && !Array.isArray(item.personalization) ? item.personalization : {} })) : [];
 } catch { cart = []; }
 
 function photo(product, className, photoIndex = 0) {
@@ -35,9 +36,15 @@ const hasPersonalization = personalization => Object.values(personalization || {
 const unitPrice = (product, personalization) => activePrice(product) + (product.customizable && hasPersonalization(personalization) ? Number(product.personalizationPrice || 0) : 0);
 const productUrl = product => `/produto?id=${encodeURIComponent(product.id)}`;
 const teamName = id => catalog.categories.find(team => team.id === id)?.name || '';
-const isPurchasable = product => Boolean(product?.available && !product?.demo) && !(product.fulfillment === 'ready' && product.stock != null && Number(product.stock) <= 0);
-const stockLimit = product => product?.fulfillment === 'ready' && product.stock != null ? Number(product.stock) : 99;
-const cartCountFor = productId => cart.filter(item=>item.productId===productId).reduce((sum,item)=>sum+Number(item.quantity||0),0);
+const isPurchasable = product => Boolean(product?.available && !product?.demo) && !(product.fulfillment === 'ready' && product.stock != null && Number(product.stock) <= 0) && (!isApparel(product) || productSizes(product).some(size => sizeStock(product,size) > 0));
+const stockLimit = (product, size = '') => size ? sizeStock(product, size) : product?.fulfillment === 'ready' && product.stock != null ? Number(product.stock) : 99;
+const cartCountFor = (productId, size = null) => cart.filter(item=>item.productId===productId && (size === null || item.size === size)).reduce((sum,item)=>sum+Number(item.quantity||0),0);
+
+function sizeChoices(product) {
+  const sizes = productSizes(product);
+  if (!sizes.length) return '';
+  return `<div class="shop-sizes"><h2>Tamanho <small id="selected-size-label">Selecione</small></h2><div role="group" aria-label="Selecione o tamanho">${sizes.map(size=>{const soldOut=sizeStock(product,size)<=0;return `<button type="button" class="shop-size ${soldOut?'sold-out':''}" data-size="${size}" aria-pressed="false" aria-label="${size}${soldOut?' esgotado':''}" ${soldOut?'disabled':''}>${size}${soldOut?'<small>Esgotado</small>':''}</button>`;}).join('')}</div></div>`;
+}
 
 function chrome() {
   const nav = [['INÍCIO','/'],['CAMISAS','/catalogo?categoria=Camisas'],['PERSONALIZADOS','/catalogo?categoria=Personalizados'],['CANECAS','/catalogo?categoria=Canecas'],['BONÉS','/catalogo?categoria=Bon%C3%A9s'],['PROMOÇÕES','/catalogo?categoria=Promo%C3%A7%C3%B5es']];
@@ -125,7 +132,7 @@ function renderCatalog() {
     if (!product.available) return false;
     if (category === 'Promoções' ? !(product.promotion || (product.promoPrice && Number(product.promoPrice) < Number(product.price))) : category && product.category !== category && !(category === 'Camisas' && /^camisas?\b/i.test(product.category))) return false;
     if (team && (product.team_id||product.team) !== team) return false;
-    if (size && !(product.sizes || []).includes(size)) return false;
+    if (size && (!productSizes(product).includes(size) || sizeStock(product,size) <= 0)) return false;
     if (!priceMatches(product, range)) return false;
     return !query || `${product.name} ${product.description} ${product.category} ${teamName(product.team_id||product.team)}`.toLocaleLowerCase('pt-BR').includes(query);
   });
@@ -205,11 +212,13 @@ function renderProduct() {
   const product = catalog.products.find(item => item.id === params.get('id'));
   if (!product || !product.available) { currentProduct=null; $('#product-page').innerHTML = '<div class="catalog-empty product-missing"><h1>Produto não encontrado</h1><p>Veja os produtos disponíveis no catálogo.</p><a class="btn btn-gold" href="/catalogo">VER CATÁLOGO</a></div>'; return; }
   currentProduct = product;
+  selectedSize = '';
+  quantity = 1;
   document.title = `${product.name} | Wesllen Imports`;
   $('#breadcrumb-product').textContent = product.name;
   const photos = [product.image, ...(product.photos || [])].filter(Boolean);
   const imageCount = Math.max(1, photos.length);
-  $('#product-page').innerHTML = `<article class="shop-product-layout"><section class="shop-gallery" aria-label="Galeria de imagens"><div id="shop-main-photo">${photo(product,'shop-large-photo')}</div><div class="shop-thumbnails">${Array.from({length:imageCount},(_,index)=>`<button class="shop-thumbnail ${index===0?'selected':''}" type="button" data-photo="${index}" aria-label="Ver foto ${index+1}" aria-pressed="${index===0}">${photo(product,'shop-thumbnail-photo',index)}</button>`).join('')}</div></section><section class="shop-product-info"><p class="shop-eyebrow">${escapeHtml(product.category)}${product.team ? ` · ${escapeHtml(teamName(product.team))}` : ''}</p>${badge(product) && (product.image || product.promoPrice) ? `<span class="shop-product-badge">${badge(product)}</span>` : ''}<h1>${escapeHtml(product.name)}</h1><div class="shop-detail-prices">${product.promoPrice ? `<s>${money(product.price)}</s>` : ''}<strong>${money(activePrice(product))}</strong></div><p class="shop-description">${escapeHtml(product.description)}</p><p class="shop-stock ${product.available ? 'in-stock' : 'out-of-stock'}"><span></span>${product.available ? 'Disponível' : 'Indisponível no momento'}</p>${product.sizes?.length ? `<div class="shop-sizes"><h2>Tamanho <small id="selected-size-label">Selecione</small></h2><div role="group" aria-label="Selecione o tamanho">${product.sizes.filter(size=>['P','M','G','GG','XG'].includes(size)).map(size=>`<button type="button" class="shop-size" data-size="${escapeHtml(size)}" aria-pressed="false">${escapeHtml(size)}</button>`).join('')}</div></div>` : ''}${customizationFields(product)}<div class="shop-quantity-row"><div><span>Quantidade</span><div class="shop-quantity"><button type="button" id="qty-minus" aria-label="Diminuir quantidade">−</button><output id="qty-value">1</output><button type="button" id="qty-plus" aria-label="Aumentar quantidade">+</button></div></div><div class="shop-item-total"><span>Total do item</span><strong id="item-total">${money(activePrice(product))}</strong></div></div><div id="price-breakdown" class="shop-price-breakdown"></div><p id="product-error" class="shop-error" role="alert" hidden></p><button type="button" class="btn btn-gold shop-add" id="add-to-cart" ${product.available ? '' : 'disabled'}>ADICIONAR À SACOLA <span>›</span></button><p class="shop-product-note">O produto será adicionado à sacola para revisar seu pedido.</p></section></article>`;
+  $('#product-page').innerHTML = `<article class="shop-product-layout"><section class="shop-gallery" aria-label="Galeria de imagens"><div id="shop-main-photo">${photo(product,'shop-large-photo')}</div><div class="shop-thumbnails">${Array.from({length:imageCount},(_,index)=>`<button class="shop-thumbnail ${index===0?'selected':''}" type="button" data-photo="${index}" aria-label="Ver foto ${index+1}" aria-pressed="${index===0}">${photo(product,'shop-thumbnail-photo',index)}</button>`).join('')}</div></section><section class="shop-product-info"><p class="shop-eyebrow">${escapeHtml(product.category)}${product.team ? ` · ${escapeHtml(teamName(product.team))}` : ''}</p>${badge(product) && (product.image || product.promoPrice) ? `<span class="shop-product-badge">${badge(product)}</span>` : ''}<h1>${escapeHtml(product.name)}</h1><div class="shop-detail-prices">${product.promoPrice ? `<s>${money(product.price)}</s>` : ''}<strong>${money(activePrice(product))}</strong></div><p class="shop-description">${escapeHtml(product.description)}</p><p class="shop-stock ${product.available ? 'in-stock' : 'out-of-stock'}"><span></span>${product.available ? 'Disponível' : 'Indisponível no momento'}</p>${sizeChoices(product)}${customizationFields(product)}<div class="shop-quantity-row"><div><span>Quantidade</span><div class="shop-quantity"><button type="button" id="qty-minus" aria-label="Diminuir quantidade">−</button><output id="qty-value">1</output><button type="button" id="qty-plus" aria-label="Aumentar quantidade">+</button></div></div><div class="shop-item-total"><span>Total do item</span><strong id="item-total">${money(activePrice(product))}</strong></div></div><div id="price-breakdown" class="shop-price-breakdown"></div><p id="product-error" class="shop-error" role="alert" hidden></p><button type="button" class="btn btn-gold shop-add" id="add-to-cart" ${product.available ? '' : 'disabled'}>ADICIONAR À SACOLA <span>›</span></button><p class="shop-product-note">O produto será adicionado à sacola para revisar seu pedido.</p></section></article>`;
   if(!product.image)$('#product-page .shop-product-badge')?.remove();
   if (product.customizable && $('#custom-number')) $('#shop-main-photo').insertAdjacentHTML('afterend', '<p class="shirt-preview-note">Prévia ilustrativa: posição e cor da personalização podem variar na peça final.</p>');
   const stock=$('.shop-stock');stock.classList.toggle('in-stock',isPurchasable(product));stock.classList.toggle('out-of-stock',!isPurchasable(product));stock.innerHTML=`<span></span>${!isPurchasable(product)?'Indisponível no momento':product.fulfillment==='order'?'POR ENCOMENDA':product.stock!=null?`PRONTA ENTREGA · ${product.stock} disponíveis`:'Disponível'}`;
@@ -254,8 +263,9 @@ function updateProductTotal() {
 function addToCart() {
   if (!isPurchasable(currentProduct)) return;
   const error = $('#product-error'); error.hidden = true;
-  if(cartCountFor(currentProduct.id)+quantity>stockLimit(currentProduct)){error.textContent='Quantidade acima do estoque disponível.';error.hidden=false;return;}
-  if (currentProduct.sizes?.length && !selectedSize) { error.textContent = 'Selecione um tamanho antes de adicionar ao carrinho.'; error.hidden = false; return; }
+  if ((isApparel(currentProduct) || productSizes(currentProduct).length) && !selectedSize) { error.textContent = 'Selecione um tamanho antes de adicionar à sacola.'; error.hidden = false; return; }
+  if (selectedSize && (!productSizes(currentProduct).includes(selectedSize) || stockLimit(currentProduct,selectedSize) <= 0)) { error.textContent = 'Este tamanho está esgotado.'; error.hidden = false; return; }
+  if(cartCountFor(currentProduct.id)+quantity>stockLimit(currentProduct)||selectedSize&&cartCountFor(currentProduct.id,selectedSize)+quantity>stockLimit(currentProduct,selectedSize)){error.textContent='Quantidade acima do estoque disponível para este tamanho.';error.hidden=false;return;}
   const custom = personalization();
   if (custom.number && !/^\d{1,3}$/.test(custom.number)) { error.textContent = 'O número deve conter até três dígitos.'; error.hidden = false; return; }
   const key = JSON.stringify([currentProduct.id, selectedSize, custom]);
@@ -271,14 +281,19 @@ function saveCart() { localStorage.setItem('wesllen-cart', JSON.stringify(cart))
 function updateCartCount() { $('#shop-cart-count').textContent = cart.reduce((sum,item) => sum + Number(item.quantity || 0), 0); }
 function toast(message) { const el = $('#shop-toast'); el.textContent = message; el.classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('visible'), 3000); }
 function syncCartAvailability() {
-  const before=JSON.stringify(cart),countByProduct=new Map();
+  const before=JSON.stringify(cart),countByProduct=new Map(),countBySize=new Map();
   cart=cart.flatMap(item=>{
     const product=catalog.products.find(entry=>entry.id===item.productId);
     if(!isPurchasable(product))return [];
-    const remaining=stockLimit(product)-(countByProduct.get(product.id)||0);
+    const sizes=productSizes(product);
+    if((isApparel(product)||sizes.length)&&!sizes.includes(item.size))return [];
+    if(!sizes.length&&item.size)return [];
+    const key=`${product.id}\u0000${item.size||''}`;
+    const remaining=Math.min(stockLimit(product)-(countByProduct.get(product.id)||0),item.size?stockLimit(product,item.size)-(countBySize.get(key)||0):99);
     const quantity=Math.min(99,Number(item.quantity)||0,remaining);
     if(!Number.isInteger(quantity)||quantity<1)return [];
     countByProduct.set(product.id,(countByProduct.get(product.id)||0)+quantity);
+    countBySize.set(key,(countBySize.get(key)||0)+quantity);
     return [{...item,quantity}];
   });
   if(JSON.stringify(cart)!==before)localStorage.setItem('wesllen-cart',JSON.stringify(cart));
@@ -448,18 +463,18 @@ function syncShippingControls(){
 
 document.addEventListener('click', event => {
   const size = event.target.closest('[data-size]');
-  if (size) { selectedSize = size.dataset.size; document.querySelectorAll('.shop-size').forEach(button => { const active = button === size; button.classList.toggle('selected', active); button.setAttribute('aria-pressed', String(active)); }); $('#selected-size-label').textContent = selectedSize; $('#product-error').hidden = true; return; }
+  if (size) { if(size.disabled)return;selectedSize = size.dataset.size;quantity=Math.min(quantity,stockLimit(currentProduct,selectedSize)); document.querySelectorAll('.shop-size').forEach(button => { const active = button === size; button.classList.toggle('selected', active); button.setAttribute('aria-pressed', String(active)); }); $('#selected-size-label').textContent = selectedSize; $('#product-error').hidden = true;updateProductTotal(); return; }
   const thumb = event.target.closest('[data-photo]');
   if (thumb && currentProduct) { const index = Number(thumb.dataset.photo); $('#shop-main-photo').innerHTML = photo(currentProduct,'shop-large-photo',index); renderPersonalizationPreview(); document.querySelectorAll('.shop-thumbnail').forEach(button => { const active = button === thumb; button.classList.toggle('selected',active); button.setAttribute('aria-pressed',String(active)); }); return; }
   if (event.target.closest('#qty-minus')) { quantity = Math.max(1, quantity - 1); updateProductTotal(); return; }
-  if (event.target.closest('#qty-plus')) { quantity = Math.min(99, stockLimit(currentProduct), quantity + 1); updateProductTotal(); return; }
+  if (event.target.closest('#qty-plus')) { quantity = Math.min(99, stockLimit(currentProduct),selectedSize?stockLimit(currentProduct,selectedSize):99, quantity + 1); updateProductTotal(); return; }
   if (event.target.closest('#add-to-cart')) { addToCart(); return; }
   const cartQty = event.target.closest('[data-cart-qty]');
-  if (cartQty) { const index = Number(cartQty.dataset.index); if (cart[index]) { const delta=Number(cartQty.dataset.cartQty),product=catalog.products.find(p=>p.id===cart[index].productId);if(delta<0&&cart[index].quantity===1)return;if(delta>0&&cartCountFor(product.id)>=stockLimit(product)){toast('Estoque disponível atingido.');return;}cart[index].quantity = Math.max(1,Math.min(99,cart[index].quantity+delta)); saveCart(); } return; }
+  if (cartQty) { const index = Number(cartQty.dataset.index); if (cart[index]) { const delta=Number(cartQty.dataset.cartQty),product=catalog.products.find(p=>p.id===cart[index].productId),size=cart[index].size;if(delta<0&&cart[index].quantity===1)return;if(delta>0&&(cartCountFor(product.id)>=stockLimit(product)||size&&cartCountFor(product.id,size)>=stockLimit(product,size))){toast('Estoque disponível atingido.');return;}cart[index].quantity = Math.max(1,Math.min(99,cart[index].quantity+delta)); saveCart(); } return; }
   const remove = event.target.closest('[data-remove]');
   if (remove) { cart.splice(Number(remove.dataset.remove),1); saveCart(); return; }
   const pageQty = event.target.closest('[data-page-qty]');
-  if (pageQty) { const index = Number(pageQty.dataset.index); if (cart[index]) { const delta=Number(pageQty.dataset.pageQty),product=catalog.products.find(p=>p.id===cart[index].productId);if(delta<0&&cart[index].quantity===1)return;if(delta>0&&cartCountFor(product.id)>=stockLimit(product)){toast('Estoque disponível atingido.');return;}cart[index].quantity = Math.max(1,Math.min(99,cart[index].quantity + delta)); saveCart(); } return; }
+  if (pageQty) { const index = Number(pageQty.dataset.index); if (cart[index]) { const delta=Number(pageQty.dataset.pageQty),product=catalog.products.find(p=>p.id===cart[index].productId),size=cart[index].size;if(delta<0&&cart[index].quantity===1)return;if(delta>0&&(cartCountFor(product.id)>=stockLimit(product)||size&&cartCountFor(product.id,size)>=stockLimit(product,size))){toast('Estoque disponível atingido.');return;}cart[index].quantity = Math.max(1,Math.min(99,cart[index].quantity + delta)); saveCart(); } return; }
   const pageRemove = event.target.closest('[data-page-remove]');
   if (pageRemove) { cart.splice(Number(pageRemove.dataset.pageRemove),1); saveCart(); }
 });

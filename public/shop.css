@@ -100,6 +100,7 @@ body { background: radial-gradient(circle at top left,#5c3908 0,#100e0b 30%,#050
 .shop-sizes>div { display:flex; flex-wrap:wrap; gap:8px; }
 .shop-size { min-width:48px; height:43px; border:1px solid #686868; border-radius:5px; background:#1c1c1c; color:#fff; font:800 17px Arial,Helvetica,sans-serif; }
 .shop-size:hover,.shop-size.selected { border-color:var(--shop-gold); background:var(--shop-gold); color:#0d0d0d; }
+.shop-size{display:grid;place-content:center;gap:2px;min-width:55px;transition:background .15s,border-color .15s,transform .15s}.shop-size:not(:disabled):hover{transform:translateY(-2px)}.shop-size:focus-visible{outline:2px solid #fff;outline-offset:2px}.shop-size small{font:600 9px 'Segoe UI',Arial,sans-serif}.shop-size.sold-out{border-color:#4b4b4b;background:#222;color:#999;cursor:not-allowed}.shop-size.sold-out small{color:#c1887b}
 .shop-custom-fields { display:grid; grid-template-columns:minmax(0,1fr) 125px; gap:12px; }
 .shop-custom-fields-other { grid-template-columns:1fr 1fr; }
 .shop-custom-fields-other label:last-child { grid-column:1/-1; }

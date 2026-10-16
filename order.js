@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { isApparel, productSizes, sizeStock } from './public/sizes.js';
 
 export const money = amount => `R$ ${Number(amount).toFixed(2).replace('.', ',')}`;
 const singleLine = (value, limit) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, limit);
@@ -20,17 +21,21 @@ export function lineForItem(item) {
 export function orderItemsFrom(rawItems, catalog) {
   if (!Array.isArray(rawItems) || !rawItems.length || rawItems.length > 50) throw new Error('O carrinho está vazio ou inválido.');
 
-  const requested=new Map();
-  for(const raw of rawItems)requested.set(raw.productId,(requested.get(raw.productId)||0)+Number(raw.quantity));
-  for(const [productId,quantity] of requested){const product=catalog.products.find(entry=>entry.id===productId);if(product?.fulfillment==='ready'&&product.stock!=null&&quantity>Number(product.stock))throw new Error(`Estoque insuficiente para ${product.name}.`);}
-
-  return rawItems.map(raw => {
+  const requested=new Map(), requestedBySize=new Map();
+  const items = rawItems.map(raw => {
     const product = catalog.products.find(entry => entry.id === raw.productId && entry.available);
     if (!product) throw new Error('Um produto não está mais disponível. Atualize o carrinho.');
     const quantity = Number(raw.quantity);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) throw new Error('Quantidade inválida.');
     const size = singleLine(raw.size, 10);
-    if (product.sizes?.length && !product.sizes.includes(size)) throw new Error(`Escolha um tamanho para ${product.name}.`);
+    const sizes = productSizes(product);
+    if ((isApparel(product) || sizes.length) && !sizes.includes(size)) throw new Error(`Escolha um tamanho para ${product.name}.`);
+    if (!sizes.length && size) throw new Error(`Tamanho indisponível para ${product.name}.`);
+    requested.set(product.id, (requested.get(product.id) || 0) + quantity);
+    if (size) {
+      const key = `${product.id}\u0000${size}`;
+      requestedBySize.set(key, (requestedBySize.get(key) || 0) + quantity);
+    }
     const personalization = {
       name: singleLine(raw.personalization?.name, 30),
       number: singleLine(raw.personalization?.number, 3),
@@ -46,6 +51,16 @@ export function orderItemsFrom(rawItems, catalog) {
     if (!Number.isFinite(unitPrice) || unitPrice < 0) throw new Error('Preço inválido no catálogo.');
     return { productId: product.id, productName: product.name, model: singleLine(product.model, 60), quantity, size, personalization, unitPrice };
   });
+  for (const [productId, quantity] of requested) {
+    const product = catalog.products.find(entry => entry.id === productId);
+    if (product.fulfillment === 'ready' && product.stock != null && quantity > Number(product.stock)) throw new Error(`Estoque insuficiente para ${product.name}.`);
+  }
+  for (const [key, quantity] of requestedBySize) {
+    const [productId, size] = key.split('\u0000');
+    const product = catalog.products.find(entry => entry.id === productId);
+    if (quantity > sizeStock(product, size)) throw new Error(`Estoque insuficiente para ${product.name} no tamanho ${size}.`);
+  }
+  return items;
 }
 
 export function quoteFrom(payload, catalog, shipping = null) {

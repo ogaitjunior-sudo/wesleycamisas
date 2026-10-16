@@ -46,6 +46,23 @@ test('o orçamento respeita o estoque total e os campos de personalização do p
   assert.equal(quoteFrom({customer,items:[shirt(2)]},current).total,429.8);
 });
 
+test('o mesmo produto aceita tamanhos diferentes e limita o estoque de cada tamanho', () => {
+  const current=structuredClone(catalog);
+  const product=current.products.find(item=>item.id==='barcelona-2627');
+  product.sizes=['M','G','GG','G1'];
+  product.sizeStock={M:2,G:1,GG:0,G1:3};
+  product.fulfillment='ready';product.stock=6;
+  const customer={name:'Ana',city:'Salvador'};
+  const items=[{...shirt(1),size:'M'},{...shirt(1),size:'G'}];
+  const quote=quoteFrom({customer,items},current);
+  assert.equal(quote.items.length,2);
+  assert.match(quote.message,/Tamanho: M/);
+  assert.match(quote.message,/Tamanho: G/);
+  assert.throws(()=>quoteFrom({customer,items:[shirt(1),shirt(1)]},current),/tamanho G/);
+  assert.throws(()=>quoteFrom({customer,items:[{...shirt(),size:'GG'}]},current),/tamanho GG/);
+  assert.throws(()=>quoteFrom({customer,items:[{...shirt(),size:'PP'}]},current),/Escolha um tamanho/);
+});
+
 test('pedido com dados completos preserva contato e endereço no WhatsApp', () => {
   const customer={name:'Ana Souza',phone:'(71) 99999-9999',postalCode:'40000-000',street:'Rua das Flores',number:'12',complement:'Casa 2',district:'Centro',city:'Salvador',state:'BA'};
   const quote=quoteFrom({customer,items:[shirt()]},catalog);

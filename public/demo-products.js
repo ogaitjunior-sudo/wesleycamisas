@@ -1,6 +1,6 @@
 // Vitrine ilustrativa. Estes itens não são cadastrados no banco nem aceitam pedidos.
 // O administrador pode ocultar a vitrine em Configurações quando tiver fotos e preços reais.
-const shirtSizes = ['P', 'M', 'G', 'GG', 'XG'];
+const shirtSizes = ['PP', 'P', 'M', 'G', 'GG', 'G1', 'G2', 'G3'];
 
 export const demoProducts = [
   { id: 'demo-brasil-amarela', name: 'Camisa Brasil Amarela · demonstração', category: 'Camisas', team: 'selecao-brasil', price: 189.90, image: '/assets/demo/brasil.webp', description: 'Exemplo ilustrativo de camisa amarela e verde. Foto e preço de demonstração.', sizes: shirtSizes, featured: true },
