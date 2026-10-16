@@ -422,9 +422,11 @@ const server = http.createServer(async (req, res) => {
       if(next.settings.shippingEnabled&&!next.settings.shippingOriginCep)return json(res,400,{error:'Configure o CEP de origem antes de ativar o frete.'});
       if(next.settings.shippingEnabled&&(!process.env.MELHOR_ENVIO_TOKEN||!/\([^()\s]+@[^()\s]+\)/.test(String(process.env.MELHOR_ENVIO_USER_AGENT||''))))return json(res,409,{error:'Configure MELHOR_ENVIO_TOKEN e MELHOR_ENVIO_USER_AGENT no servidor antes de ativar o frete.'});
       if(next.settings.shippingEnabled&&production&&process.env.MELHOR_ENVIO_SANDBOX==='1')return json(res,409,{error:'Desative MELHOR_ENVIO_SANDBOX para usar cotações reais em produção.'});
-      const teamIds=new Set(),teamSlugs=new Set();
+      if (next.deletedTeamIds != null && (!Array.isArray(next.deletedTeamIds) || next.deletedTeamIds.some(id => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(id))) || new Set(next.deletedTeamIds).size !== next.deletedTeamIds.length)) return json(res,400,{error:'Lista de times excluídos inválida.'});
+      const teamIds=new Set(),teamSlugs=new Set(),teamNames=new Set();
       for(const team of next.categories){
-        if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.id||''))||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.slug||''))||!String(team.name||'').trim()||teamIds.has(team.id)||teamSlugs.has(team.slug))return json(res,400,{error:'Time inválido, duplicado ou com slug repetido.'});
+        const normalizedName=String(team.name||'').trim().replace(/\s+/g,' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
+        if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.id||''))||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.slug||''))||!normalizedName||teamIds.has(team.id)||teamSlugs.has(team.slug)||teamNames.has(normalizedName))return json(res,400,{error:'Time inválido, duplicado ou com slug repetido.'});
         if(!['Brasil','Europa','Seleções','Retrô'].includes(team.category))return json(res,400,{error:'Categoria de time inválida.'});
         if(!Number.isInteger(Number(team.sort_order))||Number(team.sort_order)<0)return json(res,400,{error:'Ordem do time inválida.'});
         if(team.logo_url){
@@ -435,7 +437,7 @@ const server = http.createServer(async (req, res) => {
           if(!bundled&&!remote&&!(local&&fs.existsSync(path.join(uploadDir,'team-logos',path.basename(local[0])))))return json(res,400,{error:'Envie o escudo PNG ou WebP pelo painel.'});
         }
         team.is_active=team.is_active===true;team.show_on_home=team.show_on_home===true;
-        teamIds.add(team.id);teamSlugs.add(team.slug);
+        teamIds.add(team.id);teamSlugs.add(team.slug);teamNames.add(normalizedName);
       }
       const chosenHomeTeams = next.categories.filter(team => team.is_active && team.show_on_home);
       if (chosenHomeTeams.length > 10) {

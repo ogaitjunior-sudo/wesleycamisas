@@ -5,10 +5,12 @@ import { publicationIssues, normalizedCatalog } from '../publication.js';
 
 test('Supabase usa somente a chave no servidor e persiste catálogo, pedidos e fotos', async () => {
   const calls = [];
+  let storedCatalog = { products: [] };
   const fetchImpl = async (url, options) => {
     calls.push({ url, options });
     const method = options.method || 'GET';
-    const value = method === 'GET' && url.includes('wesllen_catalog') ? [{ document: { products: [] } }]
+    if (url.includes('wesllen_catalog') && method !== 'GET') storedCatalog = JSON.parse(options.body).document;
+    const value = method === 'GET' && url.includes('wesllen_catalog') ? [{ document: storedCatalog }]
       : method === 'GET' && url.includes('wesllen_quotes') ? [{ payload: { id: 'quote-1' } }]
       : null;
     return new Response(value === null ? '' : JSON.stringify(value), { status: method === 'GET' ? 200 : 201 });
@@ -23,14 +25,28 @@ test('Supabase usa somente a chave no servidor e persiste catálogo, pedidos e f
   await store.writeQuote({ id: 'quote-2', createdAt: '2026-10-07T00:00:00Z' });
   const photo = await store.uploadPhoto('12345678-1234-1234-1234-123456789abc.png', 'image/png', Buffer.from('PNG'));
   assert.equal(photo, 'https://example.supabase.co/storage/v1/object/public/wesllen-products/12345678-1234-1234-1234-123456789abc.png');
-  assert.equal(calls.length, 6);
+  assert.equal(calls.length, 7);
   assert.ok(calls.every(call => call.options.headers.apikey === 'sb_secret_fixture'));
   assert.ok(calls.every(call => !call.options.headers.Authorization));
   assert.ok(calls.every(call => !call.url.includes('sb_secret_')));
   assert.match(calls[1].options.headers.Prefer, /resolution=merge-duplicates/);
-  assert.equal(new URL(calls[2].url).search, '');
-  assert.ok(!calls[2].options.headers.Prefer.includes('resolution=merge-duplicates'));
-  assert.equal(calls[5].options.headers['Content-Type'], 'image/png');
+  assert.equal(new URL(calls[3].url).search, '');
+  assert.ok(!calls[3].options.headers.Prefer.includes('resolution=merge-duplicates'));
+  assert.equal(calls[6].options.headers['Content-Type'], 'image/png');
+});
+
+test('Supabase rejeita sucesso aparente quando um gatilho descarta o time', async () => {
+  const stored = { categories: [], products: [] };
+  const store = createSupabaseStore({
+    url:'https://example.supabase.co', secret:'sb_secret_fixture',
+    fetchImpl:async (_url, options) => options.method === 'PATCH'
+      ? Response.json([{ document:stored }])
+      : Response.json([{ document:stored, updated_at:'2026-10-16T12:00:00.000Z' }])
+  });
+  await assert.rejects(
+    store.writeCatalog({ categories:[{id:'novo-time'}], products:[] }, '2026-10-16T12:00:00.000Z'),
+    /não confirmou os dados salvos/
+  );
 });
 
 test('seed recebe conflito sem sobrescrever catálogo existente', async () => {

@@ -64,8 +64,9 @@ export const teamPresets = [
 
 export function prepareTeamsCatalog(catalog) {
   const existing = Array.isArray(catalog.categories) ? catalog.categories : [];
+  const deletedTeamIds = new Set(Array.isArray(catalog.deletedTeamIds) ? catalog.deletedTeamIds : []);
   const byId = new Map(existing.map(team => [team.id, team]));
-  const teams = teamPresets.map(preset => {
+  const teams = teamPresets.filter(preset => !deletedTeamIds.has(preset.id)).map(preset => {
     const saved = byId.get(preset.id);
     const team = { ...preset, ...(saved || {}) };
     if (preset.logo_url && saved && !saved.logo_url && saved.logo_disabled !== true) {
@@ -74,6 +75,7 @@ export function prepareTeamsCatalog(catalog) {
     return team;
   });
   for (const team of existing) {
+    if (deletedTeamIds.has(team.id)) continue;
     if (teamPresets.some(preset => preset.id === team.id)) continue;
     teams.push({
       id: team.id, name: team.name, slug: team.slug || team.id,

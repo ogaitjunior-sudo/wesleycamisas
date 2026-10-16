@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 const bucket = 'wesllen-products';
 
 function unavailable(message) {
@@ -64,12 +66,16 @@ export function createSupabaseStore({ url, secret, fetchImpl = fetch }) {
           body: JSON.stringify({ document, updated_at: new Date(Math.max(Date.now(), Date.parse(expectedRevision) + 1)).toISOString() })
         });
         if (!rows.length) throw Object.assign(new Error('O catálogo foi alterado em outra sessão. Recarregue o painel antes de salvar.'), { status: 409 });
-        return;
+      } else {
+        await request('/rest/v1/wesllen_catalog?on_conflict=id', {
+          method: 'POST', headers: { ...jsonHeaders, Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify({ id: 1, document, updated_at: new Date().toISOString() })
+        });
       }
-      await request('/rest/v1/wesllen_catalog?on_conflict=id', {
-        method: 'POST', headers: { ...jsonHeaders, Prefer: 'resolution=merge-duplicates,return=minimal' },
-        body: JSON.stringify({ id: 1, document, updated_at: new Date().toISOString() })
-      });
+      const saved = (await request('/rest/v1/wesllen_catalog?id=eq.1&select=document'))[0]?.document;
+      if (!isDeepStrictEqual(saved, document)) {
+        throw unavailable('O Supabase não confirmou os dados salvos. Verifique os gatilhos da tabela wesllen_catalog e tente novamente.');
+      }
     },
     async insertCatalogIfEmpty(document) {
       await request('/rest/v1/wesllen_catalog', {
