@@ -61,6 +61,14 @@ test('modo Vercel preserva sessão, catálogo e configurações com Supabase sim
     assert.equal(login.status, 200);
     const cookie = login.headers.get('set-cookie').split(';')[0];
     assert.equal((await fetch(`${base}/api/admin/catalog`, {headers:{cookie}})).status, 200);
+    assert.equal((await fetch(`${base}/api/admin/shipping/status`)).status, 401);
+    const shippingStatusResponse = await fetch(`${base}/api/admin/shipping/status`, {headers:{cookie}});
+    assert.equal(shippingStatusResponse.status, 200);
+    const shippingStatus = await shippingStatusResponse.json();
+    assert.equal(shippingStatus.ready, false);
+    assert.equal(shippingStatus.environment, 'production');
+    assert.ok(shippingStatus.issues.some(issue => issue.includes('MELHOR_ENVIO_TOKEN')));
+    assert.equal(JSON.stringify(shippingStatus).includes('sb_secret_fixture'), false);
     const upload = await fetch(`${base}/api/admin/upload`, { method:'POST', headers:{cookie,'content-type':'application/json'},
       body:JSON.stringify({data:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl+7GQAAAAASUVORK5CYII='}) });
     assert.equal(upload.status, 200);

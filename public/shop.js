@@ -16,6 +16,7 @@ let shippingQuote = null;
 let selectedShipping = null;
 let shippingRequest = 0;
 let shippingController;
+let shippingDebounce;
 let addressDebounce;
 let addressRequest = 0;
 let shippingUnavailable = false;
@@ -296,7 +297,7 @@ function addToCart() {
   openCart();
 }
 
-function saveCart() { localStorage.setItem('wesllen-cart', JSON.stringify(cart)); updateCartCount(); renderCart(); if (page === 'carrinho') { invalidateShipping('A sacola mudou. Calcule o frete novamente.'); renderCartPage(); } }
+function saveCart() { localStorage.setItem('wesllen-cart', JSON.stringify(cart)); updateCartCount(); renderCart(); if (page === 'carrinho') { invalidateShipping('A sacola mudou. Atualizando o frete...'); renderCartPage(); scheduleCartShipping(); } }
 function updateCartCount() { $('#shop-cart-count').textContent = cart.reduce((sum,item) => sum + Number(item.quantity || 0), 0); }
 function toast(message) { const el = $('#shop-toast'); el.textContent = message; el.classList.add('visible'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('visible'), 3000); }
 function syncCartAvailability() {
@@ -377,6 +378,7 @@ function updateCheckoutButton() {
   button.querySelector('span').textContent=shippingUnavailable?'CONSULTAR FRETE E FINALIZAR PELO WHATSAPP':'FINALIZAR PEDIDO PELO WHATSAPP';
 }
 function invalidateShipping(message) {
+  clearTimeout(shippingDebounce);
   shippingController?.abort();
   shippingRequest++;
   shippingQuote=null;selectedShipping=null;
@@ -390,6 +392,11 @@ function invalidateShipping(message) {
   renderShippingTotal();
   updateCheckoutButton();
 }
+function scheduleCartShipping() {
+  clearTimeout(shippingDebounce);
+  if (page !== 'carrinho' || catalog.settings?.shippingEnabled !== true || !cart.length || !/^\d{8}$/.test($('#cart-postal-code').value.replace(/\D/g, ''))) return;
+  shippingDebounce = setTimeout(calculateCartShipping, 500);
+}
 function renderShippingTotal(productsTotal) {
   if(page!=='carrinho')return;
   const total=productsTotal??cart.reduce((sum,item)=>{const product=catalog.products.find(p=>p.id===item.productId);return product?sum+unitPrice(product,item.personalization)*item.quantity:sum;},0);
@@ -398,6 +405,7 @@ function renderShippingTotal(productsTotal) {
   $('#cart-grand-total').textContent=selectedShipping?money(Math.round(total*100+selectedShipping.priceCents)/100):'Pendente';
 }
 async function calculateCartShipping() {
+  clearTimeout(shippingDebounce);
   if(catalog.settings?.shippingEnabled!==true)return;
   const button=$('#cart-shipping-calculate');
   if(button.disabled)return;
@@ -482,12 +490,13 @@ function initCartPage() {
     clearTimeout(addressDebounce);addressRequest++;
     $('#cart-address-status').textContent=digits.length===8?'Buscando endereço pelo CEP...':'Ao informar o CEP, buscamos o endereço. Você pode corrigir os campos.';
     $('#cart-address-status').classList.remove('error');
-    invalidateShipping(digits.length===8?'CEP alterado. Clique em calcular frete.':'Informe os 8 números do CEP para calcular o frete.');
-    if(digits.length===8)addressDebounce=setTimeout(()=>lookupCartAddress(digits),450);
+    invalidateShipping(digits.length===8?'CEP alterado. Buscando opções de entrega...':'Informe os 8 números do CEP para calcular o frete.');
+    if(digits.length===8){addressDebounce=setTimeout(()=>lookupCartAddress(digits),450);scheduleCartShipping();}
   });
   $('#cart-shipping-calculate').addEventListener('click',calculateCartShipping);
   $('#cart-shipping-options').addEventListener('change',event=>{const option=shippingQuote?.options.find(entry=>entry.id===event.target.value);selectedShipping=option||null;shippingUnavailable=false;renderShippingTotal();updateCheckoutButton();});
   syncShippingControls();
+  scheduleCartShipping();
   $('#cart-checkout-form').addEventListener('submit',submitCart);
 }
 function syncShippingControls(){
@@ -553,7 +562,7 @@ async function refreshCatalog() {
     catalog=next;updateContact();renderCart();
     if(page==='catalogo'){refreshCatalogFilters();renderCatalog();}
     else if(page==='times')initTeams();
-    else if(page==='carrinho'){syncShippingControls();invalidateShipping('O catálogo mudou. Calcule o frete novamente.');renderCartPage();}
+    else if(page==='carrinho'){syncShippingControls();invalidateShipping('O catálogo mudou. Atualizando o frete...');renderCartPage();scheduleCartShipping();}
     else refreshProductStock();
   } catch { /* A consulta seguinte tentará novamente. */ }
   finally {refreshInFlight=false;}

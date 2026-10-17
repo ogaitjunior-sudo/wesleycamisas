@@ -28,7 +28,9 @@ export function shippingMeasurements(product) {
 export async function calculateShipping({ postalCode, items, catalog, token, userAgent, sandbox = false, fetchImpl = fetch }) {
   const destination = normalizePostalCode(postalCode);
   const origin = normalizePostalCode(catalog.settings?.shippingOriginCep);
-  if (!token || !userAgent || !/\([^()\s]+@[^()\s]+\)/.test(userAgent)) {
+  token = String(token || '').trim();
+  userAgent = String(userAgent || '').trim();
+  if (!token || !/\([^()\s]+@[^()\s]+\)/.test(userAgent)) {
     throw shippingError('O cálculo de frete ainda não está configurado pela loja.', 503);
   }
   const products = items.map(item => {
@@ -54,8 +56,17 @@ export async function calculateShipping({ postalCode, items, catalog, token, use
       body: JSON.stringify({ from: { postal_code: origin }, to: { postal_code: destination }, products, options: { receipt: false, own_hand: false } }),
       signal: AbortSignal.timeout(12_000)
     });
-  } catch {
+  } catch (error) {
+    console.error('Melhor Envio: falha de rede na cotação', error?.message || error);
     throw shippingError('Não foi possível consultar o frete agora. Tente novamente em instantes.', 503);
+  }
+  if (!response.ok) {
+    let providerError = '';
+    try {
+      const raw = await response.text();
+      providerError = raw.replaceAll(token, '[token oculto]').slice(0, 2000);
+    } catch { /* A resposta do provedor pode não ter corpo. */ }
+    console.error('Melhor Envio: cotação recusada', JSON.stringify({ status: response.status, body: providerError }));
   }
   if (response.status === 400 || response.status === 422) throw shippingError('CEP inexistente ou dados de envio inválidos. Confira o CEP e tente novamente.');
   if (response.status === 401 || response.status === 403) throw shippingError('O serviço de frete precisa ser configurado pela loja.', 503);
@@ -73,6 +84,9 @@ export async function calculateShipping({ postalCode, items, catalog, token, use
     if (!id || !name || !Number.isFinite(price) || price < 0 || !Number.isInteger(days) || days < 0) return null;
     return { id, name, company, priceCents: Math.round(price * 100), deliveryDays: days };
   }).filter(Boolean);
-  if (!options.length) throw shippingError('Não há opções de entrega para este CEP e os produtos escolhidos.', 409);
+  if (!options.length) {
+    console.error('Melhor Envio: nenhuma modalidade disponível', JSON.stringify(result.map(entry => ({ id: entry.id, error: entry.error })).slice(0, 30)));
+    throw shippingError('Não há opções de entrega para este CEP e os produtos escolhidos.', 409);
+  }
   return { postalCode: destination, options };
 }

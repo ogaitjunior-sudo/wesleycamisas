@@ -190,9 +190,20 @@ function publicSettings(settings) {
   return Object.fromEntries(publicSettingNames.filter(name => Object.hasOwn(settings, name)).map(name => [name, settings[name]]));
 }
 function shippingReady(catalog) {
-  return catalog.settings?.shippingEnabled === true && /^\d{8}$/.test(String(catalog.settings.shippingOriginCep || '')) &&
-    Boolean(process.env.MELHOR_ENVIO_TOKEN) && /\([^()\s]+@[^()\s]+\)/.test(String(process.env.MELHOR_ENVIO_USER_AGENT || '')) &&
-    !(production && process.env.MELHOR_ENVIO_SANDBOX === '1');
+  return shippingStatus(catalog).ready;
+}
+function shippingStatus(catalog) {
+  const issues = [];
+  if (catalog.settings?.shippingEnabled !== true) issues.push('Cálculo automático desativado nas configurações da loja.');
+  if (!/^\d{8}$/.test(String(catalog.settings?.shippingOriginCep || ''))) issues.push('CEP de origem ausente ou inválido.');
+  if (!String(process.env.MELHOR_ENVIO_TOKEN || '').trim()) issues.push('MELHOR_ENVIO_TOKEN ausente no servidor.');
+  if (!/\([^()\s]+@[^()\s]+\)/.test(String(process.env.MELHOR_ENVIO_USER_AGENT || ''))) issues.push('MELHOR_ENVIO_USER_AGENT ausente ou inválido no servidor.');
+  if (production && process.env.MELHOR_ENVIO_SANDBOX === '1') issues.push('Sandbox ativado no ambiente de produção.');
+  const productsWithoutMeasurements = catalog.products.filter(product => product.available).filter(product => {
+    try { shippingMeasurements(product); return false; } catch { return true; }
+  }).map(product => ({ id: product.id, name: product.name }));
+  if (productsWithoutMeasurements.length) issues.push('Produtos ativos sem peso ou dimensões válidos.');
+  return { ready: issues.length === 0, environment: process.env.MELHOR_ENVIO_SANDBOX === '1' ? 'sandbox' : 'production', issues, productsWithoutMeasurements };
 }
 const publicRequestWindows = new Map();
 function publicRequestAllowed(req, route, limit) {
@@ -394,6 +405,10 @@ const server = http.createServer(async (req, res) => {
       const snapshot = await getCatalogSnapshot();
       return json(res, 200, { ...normalizedCatalog(snapshot.catalog, uploadDir, publicPhotoBase), revision: snapshot.revision });
     }
+    if (pathname === '/api/admin/shipping/status' && req.method === 'GET') {
+      const catalog = normalizedCatalog(await getCatalog(), uploadDir, publicPhotoBase);
+      return json(res, 200, shippingStatus(catalog));
+    }
     if (pathname === '/api/admin/catalog' && req.method === 'PUT') {
       const next = prepareTeamsCatalog(await body(req));
       if (!next || !Array.isArray(next.products) || !Array.isArray(next.categories) || !Array.isArray(next.productCategories) || !next.settings || typeof next.settings !== 'object') return json(res, 400, { error: 'Catálogo inválido.' });
@@ -420,7 +435,7 @@ const server = http.createServer(async (req, res) => {
       next.settings.shippingOriginCep=String(next.settings.shippingOriginCep||'').replace(/\D/g,'');
       if(next.settings.shippingOriginCep&&!/^\d{8}$/.test(next.settings.shippingOriginCep))return json(res,400,{error:'Informe um CEP de origem com 8 números.'});
       if(next.settings.shippingEnabled&&!next.settings.shippingOriginCep)return json(res,400,{error:'Configure o CEP de origem antes de ativar o frete.'});
-      if(next.settings.shippingEnabled&&(!process.env.MELHOR_ENVIO_TOKEN||!/\([^()\s]+@[^()\s]+\)/.test(String(process.env.MELHOR_ENVIO_USER_AGENT||''))))return json(res,409,{error:'Configure MELHOR_ENVIO_TOKEN e MELHOR_ENVIO_USER_AGENT no servidor antes de ativar o frete.'});
+      if(next.settings.shippingEnabled&&(!String(process.env.MELHOR_ENVIO_TOKEN||'').trim()||!/\([^()\s]+@[^()\s]+\)/.test(String(process.env.MELHOR_ENVIO_USER_AGENT||''))))return json(res,409,{error:'Configure MELHOR_ENVIO_TOKEN e MELHOR_ENVIO_USER_AGENT no servidor antes de ativar o frete.'});
       if(next.settings.shippingEnabled&&production&&process.env.MELHOR_ENVIO_SANDBOX==='1')return json(res,409,{error:'Desative MELHOR_ENVIO_SANDBOX para usar cotações reais em produção.'});
       if (next.deletedTeamIds != null && (!Array.isArray(next.deletedTeamIds) || next.deletedTeamIds.some(id => !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(id))) || new Set(next.deletedTeamIds).size !== next.deletedTeamIds.length)) return json(res,400,{error:'Lista de times excluídos inválida.'});
       const teamIds=new Set(),teamSlugs=new Set(),teamNames=new Set();
