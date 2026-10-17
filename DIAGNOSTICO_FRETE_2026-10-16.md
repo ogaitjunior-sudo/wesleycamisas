@@ -11,6 +11,7 @@
 ## Código preparado localmente
 
 - O checkout passa a consultar o frete automaticamente após oito dígitos de CEP e a recotar quando o carrinho muda, mantendo a seleção da modalidade, o total e o WhatsApp.
+- O bloco “Calcular frete” ganhou um campo de CEP sincronizado com o CEP dos dados de entrega; antes, o botão aparecia separado do único campo editável e a tentativa de cálculo mostrava “Informe um CEP válido com 8 números”.
 - Um endpoint autenticado `/api/admin/shipping/status` mostra as condições que bloqueiam o frete, sem retornar o token.
 - Erros de HTTP e ausência de modalidades do Melhor Envio passam a ser registrados no servidor, com ocultação do token no corpo da resposta.
 - `npm test`: 31 testes aprovados. `npm run check`: aprovado.
@@ -21,13 +22,14 @@
 - Uma implantação protegida na Vercel foi criada com as variáveis de produção, sem associar `www.wesllenimports.com.br` a ela. Somente nessa cópia de teste, o cálculo foi habilitado e usado o CEP de origem `88823-678`, previamente conferido como Içara/SC. A configuração compartilhada da loja não foi alterada.
 - O Melhor Envio retornou dez modalidades com preço e prazo para cada CEP testado: São Paulo `01001-000` (PAC R$ 23,23, 6 dias; SEDEX R$ 46,59, 2 dias), Rio de Janeiro `20040-020` (PAC R$ 28,00, 7 dias; SEDEX R$ 59,34, 3 dias) e Salvador `40026-032` (PAC R$ 63,88, 7 dias; SEDEX R$ 81,97, 3 dias).
 - O checkout da implantação isolada serve o código novo de cotação automática. O domínio público ainda serve o código antigo, confirmado pelo conteúdo de `shop.js`.
+- Na implantação isolada atualizada, o comprador digitou `48400-000` no novo campo de CEP e enviou uma captura do checkout com modalidades reais, preços e prazos. Para o produto de R$ 110,00, selecionou Correios PAC por R$ 74,56; a captura seguinte confirmou o total de R$ 184,56 no resumo.
+- A versão atualizada também foi consultada diretamente para os três CEPs exigidos e retornou dez modalidades em cada um, com os mesmos preços e prazos de PAC registrados acima.
 - O catálogo compartilhado recebeu novos produtos durante a auditoria e continua com `shippingEnabled=false`. A API pública omite o CEP de origem deliberadamente; ele deve ser reconferido no painel antes de ativar o cálculo para os clientes. A última leitura no painel mostrou `88823-678`.
 
-## Validação pendente antes da publicação
+## Próximas verificações
 
-1. Conferir no checkout de teste que as três cotações aparecem, a seleção soma o frete ao total e mudanças de CEP/quantidade/produto recotam.
-2. Publicar apenas o commit da correção, sem o ajuste temporário usado na implantação isolada.
-3. Conferir o CEP de origem `88823-678` e ativar o cálculo no painel da loja.
-4. Executar `npm run shipping:live-check -- https://www.wesllenimports.com.br/` e conferir o checkout público após a publicação. O script consulta o endereço e exige modalidades reais com preço e prazo para os três CEPs.
+1. Publicar apenas os commits da correção, sem o ajuste temporário usado na implantação isolada.
+2. Conferir o CEP de origem `88823-678` e ativar o cálculo no painel da loja.
+3. Executar `npm run shipping:live-check -- https://www.wesllenimports.com.br/` e conferir o checkout público após a publicação. O script exige modalidades reais com preço e prazo para os três CEPs.
 
-Nenhuma alteração foi enviada ao domínio público. O valor real do token não foi exposto nem copiado. Não há preço ou prazo fictício.
+Até esta atualização do relatório, nenhuma alteração foi enviada ao domínio público. O valor real do token não foi exposto nem copiado. Não há preço ou prazo fictício.
