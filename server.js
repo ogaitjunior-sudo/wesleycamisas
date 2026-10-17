@@ -442,7 +442,7 @@ const server = http.createServer(async (req, res) => {
       for(const team of next.categories){
         const normalizedName=String(team.name||'').trim().replace(/\s+/g,' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
         if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.id||''))||!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(String(team.slug||''))||!normalizedName||teamIds.has(team.id)||teamSlugs.has(team.slug)||teamNames.has(normalizedName))return json(res,400,{error:'Time inválido, duplicado ou com slug repetido.'});
-        if(!['Brasil','Europa','Seleções','Retrô'].includes(team.category))return json(res,400,{error:'Categoria de time inválida.'});
+        if(!['Brasil','América do Sul','Europa','Seleções','Retrô'].includes(team.category))return json(res,400,{error:'Categoria de time inválida.'});
         if(!Number.isInteger(Number(team.sort_order))||Number(team.sort_order)<0)return json(res,400,{error:'Ordem do time inválida.'});
         if(team.logo_url){
           const local=/^\/uploads\/team-logos\/[a-f0-9-]+\.(?:png|webp)$/i.exec(String(team.logo_url));

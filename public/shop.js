@@ -189,7 +189,7 @@ function initTeams() {
     $('#teams-parent-link').hidden=true;
     $('#teams-parent-separator').hidden=true;
     $('#teams-breadcrumb').textContent='Times / Clubes';
-    $('#teams-page').innerHTML=`<div class="team-library-heading"><p class="shop-eyebrow">WESLLEN IMPORTS</p><h1>TIMES / CLUBES</h1><p>Escolha um time para ver as camisas disponíveis.</p></div>${['Brasil','Europa','Seleções','Retrô'].map(group=>{const teams=sorted.filter(team=>team.category===group);return teams.length?`<section class="team-library-group"><h2>${escapeHtml(group)}</h2><div class="team-library-grid">${teams.map(teamTile).join('')}</div></section>`:'';}).join('')}`;
+    $('#teams-page').innerHTML=`<div class="team-library-heading"><p class="shop-eyebrow">WESLLEN IMPORTS</p><h1>TIMES / CLUBES</h1><p>Escolha um time para ver as camisas disponíveis.</p></div>${['Brasil','América do Sul','Europa','Seleções','Retrô'].map(group=>{const teams=sorted.filter(team=>team.category===group);return teams.length?`<section class="team-library-group"><h2>${escapeHtml(group)}</h2><div class="team-library-grid">${teams.map(teamTile).join('')}</div></section>`:'';}).join('')}`;
     return;
   }
   const team=sorted.find(item=>item.slug===slug);
