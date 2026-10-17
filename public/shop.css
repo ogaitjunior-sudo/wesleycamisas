@@ -102,6 +102,13 @@ body { background: radial-gradient(circle at top left,#5c3908 0,#100e0b 30%,#050
 .shop-size:hover,.shop-size.selected { border-color:var(--shop-gold); background:var(--shop-gold); color:#0d0d0d; }
 .shop-size{display:grid;place-content:center;gap:2px;min-width:55px;transition:background .15s,border-color .15s,transform .15s}.shop-size:not(:disabled):hover{transform:translateY(-2px)}.shop-size:focus-visible{outline:2px solid #fff;outline-offset:2px}.shop-size small{font:600 9px 'Segoe UI',Arial,sans-serif}.shop-size.sold-out{border-color:#4b4b4b;background:#222;color:#999;cursor:not-allowed}.shop-size.sold-out small{color:#c1887b}
 .shop-custom-fields { display:grid; grid-template-columns:minmax(0,1fr) 125px; gap:12px; }
+.shop-personalization-choices { display:grid; gap:9px; }
+.shop-personalization-choices label { display:flex; align-items:center; gap:10px; min-height:44px; padding:9px 11px; border:1px solid #625a48; border-radius:6px; color:#eee; font-size:13px; cursor:pointer; }
+.shop-personalization-choices label:has(input:checked) { border-color:var(--shop-gold); background:#282216; }
+.shop-personalization-choices input { accent-color:var(--shop-gold); }
+.shop-personalization-choices strong { color:var(--shop-gold); }
+.shop-custom-details { margin-top:14px; }
+.shop-custom-details[hidden] { display:none; }
 .shop-custom-fields-other { grid-template-columns:1fr 1fr; }
 .shop-custom-fields-other label:last-child { grid-column:1/-1; }
 .shop-custom-fields label { display:grid; gap:6px; color:#c5c5c5; font-size:12px; font-weight:700; }

@@ -206,7 +206,8 @@ function customizationFields(product) {
   const shirt = product.category === 'Camisas' || product.category === 'Personalizados';
   const fields=product.personalizationFields|| (shirt?['name','number']:['name','phrase','note']);
   const inputs={name:`<label>${shirt?'Nome na camisa':'Nome'}<input id="custom-name" maxlength="30" autocomplete="off" placeholder="${shirt?'WESLEY':'Nome'}"></label>`,number:'<label>Número<input id="custom-number" maxlength="3" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="10"></label>',phrase:'<label>Frase<input id="custom-phrase" maxlength="100" autocomplete="off" placeholder="Sua frase"></label>',note:'<label>Observação<textarea id="custom-note" maxlength="150" rows="2" placeholder="Detalhes da personalização"></textarea></label>'};
-  return `<div class="shop-customize"><h2>PERSONALIZAÇÃO OPCIONAL</h2><div class="shop-custom-fields ${shirt?'':'shop-custom-fields-other'}">${fields.map(field=>inputs[field]||'').join('')}</div>${shirt&&fields.includes('name')&&fields.includes('number')?'<p class="shop-example">Exemplo: <strong>WESLEY · 10</strong></p>':''}</div>`;
+  const extra=Number(product.personalizationPrice||0);
+  return `<div class="shop-customize"><h2>PERSONALIZAÇÃO OPCIONAL</h2><div class="shop-personalization-choices" role="radiogroup" aria-label="Escolha de personalização"><label><input type="radio" name="personalization-choice" value="plain" checked><span>Sem personalização</span></label><label><input id="personalization-custom" type="radio" name="personalization-choice" value="custom"><span>Quero personalizar <strong>${extra>0?`+ ${money(extra)}`:'sem custo adicional'}</strong></span></label></div><div id="shop-custom-details" class="shop-custom-details" hidden><div class="shop-custom-fields ${shirt?'':'shop-custom-fields-other'}">${fields.map(field=>inputs[field]||'').join('')}</div>${shirt&&fields.includes('name')&&fields.includes('number')?'<p class="shop-example">Exemplo: <strong>WESLEY · 10</strong></p>':''}</div></div>`;
 }
 
 function renderProduct() {
@@ -231,6 +232,12 @@ function renderProduct() {
     $('#product-page .shop-product-note').textContent = 'Foto e preço ilustrativos. Wesley poderá substituir este exemplo por um produto real no painel.';
   }
   $('#product-page').addEventListener('input', updateProductTotal);
+  $('#product-page').addEventListener('change',event=>{
+    if(event.target.name!=='personalization-choice')return;
+    $('#shop-custom-details').hidden=!personalizationSelected();
+    $('#product-error').hidden=true;
+    updateProductTotal();
+  });
   renderPersonalizationPreview();
   updateProductTotal();
 }
@@ -253,7 +260,9 @@ function refreshProductStock() {
   updateProductTotal();
 }
 
+function personalizationSelected() { return $('#personalization-custom')?.checked===true; }
 function personalization() {
+  if(!personalizationSelected())return { name:'', number:'', phrase:'', note:'' };
   return { name: $('#custom-name')?.value.trim() || '', number: $('#custom-number')?.value.trim() || '', phrase: $('#custom-phrase')?.value.trim() || '', note: $('#custom-note')?.value.trim() || '' };
 }
 function renderPersonalizationPreview() {
@@ -268,14 +277,14 @@ function renderPersonalizationPreview() {
     preview.innerHTML = '<span class="shirt-preview-name"></span><strong class="shirt-preview-number"></strong>';
     photo.append(preview);
   }
-  preview.querySelector('.shirt-preview-name').textContent = custom.name.slice(0, 30).toLocaleUpperCase('pt-BR');
-  preview.querySelector('.shirt-preview-number').textContent = custom.number.slice(0, 3);
+  preview.querySelector('.shirt-preview-name').textContent = (custom.name||'').slice(0, 30).toLocaleUpperCase('pt-BR');
+  preview.querySelector('.shirt-preview-number').textContent = (custom.number||'').slice(0, 3);
   preview.hidden = !custom.name && !custom.number;
 }
 function updateProductTotal() {
   if (!currentProduct) return;
   renderPersonalizationPreview();
-  const extra = currentProduct.customizable && hasPersonalization(personalization()) ? Number(currentProduct.personalizationPrice || 0) : 0;
+  const extra = currentProduct.customizable && personalizationSelected() ? Number(currentProduct.personalizationPrice || 0) : 0;
   $('#item-total').textContent = money((activePrice(currentProduct) + extra) * quantity);
   $('#price-breakdown').innerHTML = `<span>Produto ${money(activePrice(currentProduct))}</span>${extra ? `<span>Personalização + ${money(extra)}</span>` : ''}<span>Quantidade × ${quantity}</span>`;
   $('#qty-value').textContent = quantity;
@@ -287,6 +296,7 @@ function addToCart() {
   if (selectedSize && (!productSizes(currentProduct).includes(selectedSize) || stockLimit(currentProduct,selectedSize) <= 0)) { error.textContent = 'Este tamanho está esgotado.'; error.hidden = false; return; }
   if(cartCountFor(currentProduct.id)+quantity>stockLimit(currentProduct)||selectedSize&&cartCountFor(currentProduct.id,selectedSize)+quantity>stockLimit(currentProduct,selectedSize)){const remaining=Math.max(0,stockLimit(currentProduct,selectedSize)-cartCountFor(currentProduct.id,selectedSize));error.textContent=selectedSize?`Existe${remaining===1?'':'m'} apenas ${remaining} unidade${remaining===1?'':'s'} disponível${remaining===1?'':'is'} neste tamanho.`:'Quantidade acima do estoque disponível.';error.hidden=false;return;}
   const custom = personalization();
+  if(personalizationSelected()&&!hasPersonalization(custom)){error.textContent='Informe o que deseja personalizar ou escolha “Sem personalização”.';error.hidden=false;return;}
   if (custom.number && !/^\d{1,3}$/.test(custom.number)) { error.textContent = 'O número deve conter até três dígitos.'; error.hidden = false; return; }
   const key = JSON.stringify([currentProduct.id, selectedSize, custom]);
   const existing = cart.find(item => item.key === key);

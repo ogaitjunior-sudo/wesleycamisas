@@ -26,10 +26,17 @@
 - A versão atualizada também foi consultada diretamente para os três CEPs exigidos e retornou dez modalidades em cada um, com os mesmos preços e prazos de PAC registrados acima.
 - O catálogo compartilhado recebeu novos produtos durante a auditoria e continua com `shippingEnabled=false`. A API pública omite o CEP de origem deliberadamente; ele deve ser reconferido no painel antes de ativar o cálculo para os clientes. A última leitura no painel mostrou `88823-678`.
 
-## Próximas verificações
+## Publicação e validação no domínio da loja
 
-1. Publicar apenas os commits da correção, sem o ajuste temporário usado na implantação isolada.
-2. Conferir o CEP de origem `88823-678` e ativar o cálculo no painel da loja.
-3. Executar `npm run shipping:live-check -- https://www.wesllenimports.com.br/` e conferir o checkout público após a publicação. O script exige modalidades reais com preço e prazo para os três CEPs.
+- Os commits da correção foram enviados para `main` e a Vercel associou o deployment `dpl_6VTpAPCckvPeCX9Goi6VmRoUWte6` a `www.wesllenimports.com.br`. O ajuste temporário da implantação isolada não foi enviado ao repositório.
+- O responsável pela loja ativou “Cálculo automático” no painel. A API pública passou a retornar `shippingEnabled: true`.
+- `npm run shipping:live-check -- https://www.wesllenimports.com.br/` passou para São Paulo, Rio de Janeiro e Salvador, com dez modalidades reais, preço e prazo em cada CEP. Não há configuração pendente no Melhor Envio ou na Vercel identificada nesta validação.
+- O comprador confirmou em captura do checkout de teste a cotação e a soma do PAC ao pedido. O domínio público usa o mesmo código corrigido e o cálculo foi confirmado pela API após a ativação. A finalização continua pelo WhatsApp.
 
-Até esta atualização do relatório, nenhuma alteração foi enviada ao domínio público. O valor real do token não foi exposto nem copiado. Não há preço ou prazo fictício.
+## Ajuste de personalização identificado depois
+
+- As camisas personalizáveis estão cadastradas com R$ 35,00 adicionais. A regra confirmada pelo responsável é cobrar esse valor apenas quando o cliente escolher a personalização, avisando o preço antes dos campos.
+- A página do produto agora começa com “Sem personalização” e mostra a opção “Quero personalizar + R$ 35,00”. Os campos só aparecem quando essa opção é escolhida; um pedido sem personalização continua com o preço anunciado. Uma captura de teste confirmou a camisa do Grêmio em R$ 75,00 sem personalização.
+- A primeira implantação de teste dessa interface falhou ao abrir o produto porque a prévia tentou ler um nome ausente. O caso foi corrigido e uma nova captura confirmou a página funcionando antes da publicação desse ajuste.
+
+O valor real do token não foi exposto nem copiado. Não há preço ou prazo fictício.
