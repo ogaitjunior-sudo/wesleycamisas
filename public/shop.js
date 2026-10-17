@@ -413,7 +413,7 @@ async function calculateCartShipping() {
   invalidateShipping('Consultando opções de entrega...');
   const request=shippingRequest,signature=cartSignature();
   const status=$('#cart-shipping-status');
-  if(!/^\d{8}$/.test(postalCode)){status.textContent='Informe um CEP válido com 8 números.';status.classList.add('error');return;}
+  if(!/^\d{8}$/.test(postalCode)){status.textContent='Informe um CEP válido com 8 números.';status.classList.add('error');$('#cart-shipping-postal-code').focus();return;}
   if(!cart.length){status.textContent='Adicione um produto antes de calcular o frete.';status.classList.add('error');return;}
   button.disabled=true;button.textContent='CALCULANDO...';
   shippingController=new AbortController();
@@ -487,12 +487,18 @@ function initCartPage() {
   $('#cart-postal-code').addEventListener('input',event=>{
     const digits=event.target.value.replace(/\D/g,'').slice(0,8);
     event.target.value=digits.length>5?`${digits.slice(0,5)}-${digits.slice(5)}`:digits;
+    $('#cart-shipping-postal-code').value=event.target.value;
     clearTimeout(addressDebounce);addressRequest++;
     $('#cart-address-status').textContent=digits.length===8?'Buscando endereço pelo CEP...':'Ao informar o CEP, buscamos o endereço. Você pode corrigir os campos.';
     $('#cart-address-status').classList.remove('error');
     invalidateShipping(digits.length===8?'CEP alterado. Buscando opções de entrega...':'Informe os 8 números do CEP para calcular o frete.');
     if(digits.length===8){addressDebounce=setTimeout(()=>lookupCartAddress(digits),450);scheduleCartShipping();}
   });
+  $('#cart-shipping-postal-code').addEventListener('input',event=>{
+    $('#cart-postal-code').value=event.target.value;
+    $('#cart-postal-code').dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  $('#cart-shipping-postal-code').value=$('#cart-postal-code').value;
   $('#cart-shipping-calculate').addEventListener('click',calculateCartShipping);
   $('#cart-shipping-options').addEventListener('change',event=>{const option=shippingQuote?.options.find(entry=>entry.id===event.target.value);selectedShipping=option||null;shippingUnavailable=false;renderShippingTotal();updateCheckoutButton();});
   syncShippingControls();
